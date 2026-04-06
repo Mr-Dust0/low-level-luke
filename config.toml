@@ -25,6 +25,14 @@ ShowToc = true
 name = "email"
 url = "mailto:luke61996@gmail.com"
 
+[[params.socialIcons]]
+name = "x"
+url = "https://x.com/MrDust0"
+
+[[params.socialIcons]]
+name = "discord"
+url = "https://discordapp.com/users/dustgroot"
+
 [params.profileMode]
 enabled = false
 
