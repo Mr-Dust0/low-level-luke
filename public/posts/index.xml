@@ -1,1 +1,19 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Posts on low-level-luke</title><link>https://low-level-luke.me/posts/</link><description>Recent content in Posts on low-level-luke</description><generator>Hugo</generator><language>en-gb</language><lastBuildDate>Sun, 05 Apr 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://low-level-luke.me/posts/index.xml" rel="self" type="application/rss+xml"/><item><title>Finding the Cost of a TLB Miss</title><link>https://low-level-luke.me/posts/finding-the-cost-of-a-tlb-miss/</link><pubDate>Sun, 05 Apr 2026 00:00:00 +0000</pubDate><guid>https://low-level-luke.me/posts/finding-the-cost-of-a-tlb-miss/</guid><description>Notes from the OSTEP homework on discovering TLB cache sizes and miss costs</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Posts on low-level-luke</title>
+    <link>https://low-level-luke.me/posts/</link>
+    <description>Recent content in Posts on low-level-luke</description>
+    <generator>Hugo</generator>
+    <language>en-gb</language>
+    <lastBuildDate>Sun, 05 Apr 2026 00:00:00 +0000</lastBuildDate>
+    <atom:link href="https://low-level-luke.me/posts/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Finding the Cost of a TLB Miss</title>
+      <link>https://low-level-luke.me/posts/finding-the-cost-of-a-tlb-miss/</link>
+      <pubDate>Sun, 05 Apr 2026 00:00:00 +0000</pubDate>
+      <guid>https://low-level-luke.me/posts/finding-the-cost-of-a-tlb-miss/</guid>
+      <description>Notes from the OSTEP homework on discovering TLB cache sizes and miss costs</description>
+    </item>
+  </channel>
+</rss>
