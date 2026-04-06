@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 420" font-family="monospace" font-size="14">
+  <rect width="720" height="420" fill="#1a1a2e" rx="8"/>
+
+  <defs>
+    <marker id="arrow3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#e94560"/>
+    </marker>
+    <marker id="arrow3-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#ff6b6b"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="360" y="32" text-anchor="middle" fill="#e0e0e0" font-size="16" font-weight="bold">Pointer Chase</text>
+
+  <!-- Index labels -->
+  <g transform="translate(30, 55)">
+    <text x="50" y="12" text-anchor="middle" fill="#888" font-size="11">arr[0]</text>
+    <text x="160" y="12" text-anchor="middle" fill="#888" font-size="11">arr[1]</text>
+    <text x="270" y="12" text-anchor="middle" fill="#888" font-size="11">arr[2]</text>
+    <text x="380" y="12" text-anchor="middle" fill="#888" font-size="11">arr[3]</text>
+    <text x="490" y="12" text-anchor="middle" fill="#888" font-size="11">arr[4]</text>
+    <text x="600" y="12" text-anchor="middle" fill="#888" font-size="11">arr[5]</text>
+  </g>
+
+  <!-- Array boxes - each value is next index -->
+  <g transform="translate(30, 70)">
+    <rect x="0" y="0" width="100" height="50" fill="#16213e" stroke="#e94560" stroke-width="2" rx="4"/>
+    <text x="50" y="20" text-anchor="middle" fill="#e0e0e0" font-size="11">next: 3</text>
+    <text x="50" y="38" text-anchor="middle" fill="#666" font-size="10">Page 0</text>
+
+    <rect x="110" y="0" width="100" height="50" fill="#16213e" stroke="#0f3460" stroke-width="2" rx="4"/>
+    <text x="160" y="20" text-anchor="middle" fill="#e0e0e0" font-size="11">next: 5</text>
+    <text x="160" y="38" text-anchor="middle" fill="#666" font-size="10">Page 1</text>
+
+    <rect x="220" y="0" width="100" height="50" fill="#16213e" stroke="#0f3460" stroke-width="2" rx="4"/>
+    <text x="270" y="20" text-anchor="middle" fill="#e0e0e0" font-size="11">next: 0</text>
+    <text x="270" y="38" text-anchor="middle" fill="#666" font-size="10">Page 2</text>
+
+    <rect x="330" y="0" width="100" height="50" fill="#16213e" stroke="#e94560" stroke-width="2" rx="4"/>
+    <text x="380" y="20" text-anchor="middle" fill="#e0e0e0" font-size="11">next: 1</text>
+    <text x="380" y="38" text-anchor="middle" fill="#666" font-size="10">Page 3</text>
+
+    <rect x="440" y="0" width="100" height="50" fill="#16213e" stroke="#0f3460" stroke-width="2" rx="4"/>
+    <text x="490" y="20" text-anchor="middle" fill="#e0e0e0" font-size="11">next: 2</text>
+    <text x="490" y="38" text-anchor="middle" fill="#666" font-size="10">Page 4</text>
+
+    <rect x="550" y="0" width="100" height="50" fill="#16213e" stroke="#e94560" stroke-width="2" rx="4"/>
+    <text x="600" y="20" text-anchor="middle" fill="#e0e0e0" font-size="11">next: 4</text>
+    <text x="600" y="38" text-anchor="middle" fill="#666" font-size="10">Page 5</text>
+  </g>
+
+  <!-- Chase arrows - showing the random jumps -->
+  <!-- arr[0] -> arr[3] -->
+  <path d="M 80 140 C 80 175 410 175 410 140" stroke="#e94560" stroke-width="2.5" fill="none" marker-end="url(#arrow3)"/>
+  <text x="245" y="178" text-anchor="middle" fill="#e94560" font-size="10" font-weight="bold">1st</text>
+
+  <!-- arr[3] -> arr[1] -->
+  <path d="M 410 140 C 410 210 190 210 190 140" stroke="#ff6b6b" stroke-width="2.5" fill="none" marker-end="url(#arrow3-red)"/>
+  <text x="300" y="215" text-anchor="middle" fill="#ff6b6b" font-size="10" font-weight="bold">2nd</text>
+
+  <!-- arr[1] -> arr[5] -->
+  <path d="M 190 140 C 190 250 630 250 630 140" stroke="#e94560" stroke-width="2.5" fill="none" marker-end="url(#arrow3)"/>
+  <text x="410" y="253" text-anchor="middle" fill="#e94560" font-size="10" font-weight="bold">3rd</text>
+
+  <!-- Key insight -->
+  <g transform="translate(80, 270)">
+    <rect x="0" y="0" width="560" height="50" fill="#2a1a2a" stroke="#e94560" stroke-width="2" rx="6"/>
+    <text x="280" y="20" text-anchor="middle" fill="#e94560" font-size="13" font-weight="bold">Data dependency: must load arr[i] to know the next index.</text>
+    <text x="280" y="38" text-anchor="middle" fill="#c86070" font-size="12">The prefetcher cannot look ahead without the loaded value.</text>
+  </g>
+
+  <!-- No pattern message -->
+  <g transform="translate(110, 335)">
+    <rect x="0" y="0" width="500" height="36" fill="#2a1a1a" stroke="#888" stroke-width="1.5" rx="6"/>
+    <text x="250" y="23" text-anchor="middle" fill="#ccc" font-size="13">No pattern. Can't predict. Must go to RAM for every lookup.</text>
+  </g>
+
+  <!-- Result -->
+  <rect x="140" y="383" width="440" height="30" fill="#1a2a1a" stroke="#4ecca3" stroke-width="1" rx="4"/>
+  <text x="360" y="403" text-anchor="middle" fill="#4ecca3" font-size="14">Result: ~350 cycles (true TLB miss cost revealed)</text>
+</svg>
