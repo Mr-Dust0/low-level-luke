@@ -1,0 +1,46 @@
+baseURL = "https://low-level-luke.me/"
+languageCode = "en-gb"
+title = "low-level-luke"
+theme = "PaperMod"
+paginate = 10
+
+[params]
+defaultTheme = "dark"
+ShowReadingTime = true
+ShowPostNavLinks = true
+ShowBreadCrumbs = true
+ShowCodeCopyButtons = true
+ShowToc = true
+
+  [params.homeInfoParams]
+  Title = "low-level-luke"
+  Content = "Systems programming, performance, and things I'm learning."
+
+[params.profileMode]
+enabled = false
+
+[markup]
+  [markup.highlight]
+  style = "monokai"
+  lineNos = false
+  codeFences = true
+  guessSyntax = true
+  noClasses = false
+
+[[menu.main]]
+identifier = "home"
+name = "Home"
+url = "/"
+weight = 10
+
+[[menu.main]]
+identifier = "tags"
+name = "Tags"
+url = "/tags/"
+weight = 20
+
+[[menu.main]]
+identifier = "archive"
+name = "Archive"
+url = "/archives/"
+weight = 30
