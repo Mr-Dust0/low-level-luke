@@ -21,6 +21,10 @@ ShowToc = true
   Title = "low-level-luke"
   Content = "Systems programming, performance, and things I'm learning."
 
+[[params.socialIcons]]
+name = "email"
+url = "mailto:luke61996@gmail.com"
+
 [params.profileMode]
 enabled = false
 
