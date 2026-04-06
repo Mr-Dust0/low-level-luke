@@ -1,9 +1,10 @@
-public/
 resources/
 .hugo_build.lock
 .git/
 docs/
 deploy/
-# Layout overrides are for Hugo 0.92.2 compatibility only.
-# In Docker we use modern Hugo where PaperMod works natively.
 layouts/
+themes/
+content/
+archetypes/
+config.toml

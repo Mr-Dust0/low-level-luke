@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 320" font-family="monospace" font-size="14">
+  <rect width="720" height="320" fill="#1a1a2e" rx="8"/>
+
+  <!-- Title -->
+  <text x="360" y="32" text-anchor="middle" fill="#e0e0e0" font-size="16" font-weight="bold">Sequential Access</text>
+
+  <!-- Array boxes - pages -->
+  <g transform="translate(60, 60)">
+    <rect x="0" y="0" width="100" height="50" fill="#16213e" stroke="#0f3460" stroke-width="2" rx="4"/>
+    <text x="50" y="30" text-anchor="middle" fill="#e94560" font-size="13">Page 0</text>
+
+    <rect x="120" y="0" width="100" height="50" fill="#16213e" stroke="#0f3460" stroke-width="2" rx="4"/>
+    <text x="170" y="30" text-anchor="middle" fill="#e94560" font-size="13">Page 1</text>
+
+    <rect x="240" y="0" width="100" height="50" fill="#16213e" stroke="#0f3460" stroke-width="2" rx="4"/>
+    <text x="290" y="30" text-anchor="middle" fill="#e94560" font-size="13">Page 2</text>
+
+    <rect x="360" y="0" width="100" height="50" fill="#16213e" stroke="#0f3460" stroke-width="2" rx="4"/>
+    <text x="410" y="30" text-anchor="middle" fill="#e94560" font-size="13">Page 3</text>
+
+    <rect x="480" y="0" width="100" height="50" fill="#16213e" stroke="#0f3460" stroke-width="2" rx="4"/>
+    <text x="530" y="30" text-anchor="middle" fill="#e94560" font-size="13">Page 4</text>
+  </g>
+
+  <!-- Access arrows -->
+  <g transform="translate(60, 60)">
+    <line x1="100" y1="25" x2="120" y2="25" stroke="#53d8fb" stroke-width="2" marker-end="url(#arrow)"/>
+    <line x1="220" y1="25" x2="240" y2="25" stroke="#53d8fb" stroke-width="2" marker-end="url(#arrow)"/>
+    <line x1="340" y1="25" x2="360" y2="25" stroke="#53d8fb" stroke-width="2" marker-end="url(#arrow)"/>
+    <line x1="460" y1="25" x2="480" y2="25" stroke="#53d8fb" stroke-width="2" marker-end="url(#arrow)"/>
+  </g>
+
+  <!-- Arrow marker -->
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#53d8fb"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4ecca3"/>
+    </marker>
+  </defs>
+
+  <!-- Prefetcher box -->
+  <g transform="translate(110, 160)">
+    <rect x="0" y="0" width="500" height="70" fill="#1a3a2e" stroke="#4ecca3" stroke-width="2" rx="6" stroke-dasharray="6,3"/>
+    <text x="250" y="28" text-anchor="middle" fill="#4ecca3" font-size="14" font-weight="bold">Hardware Prefetcher</text>
+    <text x="250" y="52" text-anchor="middle" fill="#a0d9c0" font-size="12">"Sequential pattern detected. Already fetched Page 5."</text>
+  </g>
+
+  <!-- Prefetcher arrow looking ahead -->
+  <line x1="560" y1="170" x2="610" y2="110" stroke="#4ecca3" stroke-width="2" stroke-dasharray="4,3" marker-end="url(#arrow-green)"/>
+  <text x="612" y="105" fill="#4ecca3" font-size="11">next</text>
+
+  <!-- Result -->
+  <rect x="120" y="260" width="480" height="40" fill="#2a1a1a" stroke="#e94560" stroke-width="1" rx="4"/>
+  <text x="360" y="285" text-anchor="middle" fill="#e94560" font-size="14">Result: ~34 cycles (prefetcher hides TLB misses)</text>
+</svg>
