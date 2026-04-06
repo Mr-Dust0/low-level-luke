@@ -1,0 +1,23 @@
+#!/bin/bash
+set -euo pipefail
+
+DEPLOY_DIR="/var/www/low-level-luke.me"
+GIT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+WORK_DIR=$(mktemp -d)
+
+trap "rm -rf $WORK_DIR" EXIT
+
+echo ">>> Checking out code..."
+git --work-tree="$WORK_DIR" --git-dir="$GIT_DIR" checkout -f
+
+echo ">>> Initializing submodules..."
+cd "$WORK_DIR"
+git --work-tree="$WORK_DIR" --git-dir="$GIT_DIR" submodule update --init --depth=1
+
+echo ">>> Building site..."
+hugo --minify --source "$WORK_DIR"
+
+echo ">>> Deploying to $DEPLOY_DIR..."
+rsync -a --delete "$WORK_DIR/public/" "$DEPLOY_DIR/"
+
+echo ">>> Deploy complete!"
