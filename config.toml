@@ -2,7 +2,8 @@ baseURL = "https://low-level-luke.me/"
 languageCode = "en-gb"
 title = "low-level-luke"
 theme = "PaperMod"
-paginate = 10
+[pagination]
+pagerSize = 10
 
 [params]
 defaultTheme = "dark"
