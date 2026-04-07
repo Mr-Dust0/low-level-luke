@@ -2,13 +2,31 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
+    <loc>https://low-level-luke.me/braindumps/</loc>
+    <lastmod>2026-04-07T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://low-level-luke.me/tags/data-structures/</loc>
+    <lastmod>2026-04-07T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://low-level-luke.me/tags/databases/</loc>
+    <lastmod>2026-04-07T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://low-level-luke.me/braindumps/lsm-trees/</loc>
+    <lastmod>2026-04-07T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://low-level-luke.me/</loc>
+    <lastmod>2026-04-07T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://low-level-luke.me/tags/storage/</loc>
+    <lastmod>2026-04-07T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://low-level-luke.me/tags/</loc>
+    <lastmod>2026-04-07T00:00:00+00:00</lastmod>
+  </url><url>
     <loc>https://low-level-luke.me/posts/finding-the-cost-of-a-tlb-miss/</loc>
     <lastmod>2026-04-05T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://low-level-luke.me/tags/hardware/</loc>
-    <lastmod>2026-04-05T00:00:00+00:00</lastmod>
-  </url><url>
-    <loc>https://low-level-luke.me/</loc>
     <lastmod>2026-04-05T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://low-level-luke.me/tags/operating-systems/</loc>
@@ -18,9 +36,6 @@
     <lastmod>2026-04-05T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://low-level-luke.me/posts/</loc>
-    <lastmod>2026-04-05T00:00:00+00:00</lastmod>
-  </url><url>
-    <loc>https://low-level-luke.me/tags/</loc>
     <lastmod>2026-04-05T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://low-level-luke.me/archives/</loc>

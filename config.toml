@@ -19,7 +19,7 @@ ShowToc = true
 
   [params.homeInfoParams]
   Title = "low-level-luke"
-  Content = "Systems programming, performance, and things I'm learning."
+  Content = "Databases, Systems programming, performance, and things I'm learning."
 
 [[params.socialIcons]]
 name = "email"
@@ -55,6 +55,12 @@ identifier = "tags"
 name = "Tags"
 url = "/tags/"
 weight = 20
+
+[[menu.main]]
+identifier = "braindumps"
+name = "Braindumps"
+url = "/braindumps/"
+weight = 25
 
 [[menu.main]]
 identifier = "archive"

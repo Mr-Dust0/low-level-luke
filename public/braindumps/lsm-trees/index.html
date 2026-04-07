@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto" data-theme="dark">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>Log-Structured Merge Trees | low-level-luke</title>
+<meta name="keywords" content="databases, data-structures, storage">
+<meta name="description" content="How LSM trees trade read performance for fast writes, and what I got wrong along the way">
+<meta name="author" content="">
+<link rel="canonical" href="https://low-level-luke.me/braindumps/lsm-trees/">
+<link crossorigin="anonymous" href="/assets/css/stylesheet.da3211e5ef867bf2b75fd5a6515cfed7195c011e8ab735694e203810a827097b.css" integrity="sha256-2jIR5e&#43;Ge/K3X9WmUVz&#43;1xlcAR6KtzVpTiA4EKgnCXs=" rel="preload stylesheet" as="style">
+<link rel="icon" href="https://low-level-luke.me/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://low-level-luke.me/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://low-level-luke.me/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://low-level-luke.me/apple-touch-icon.png">
+<link rel="mask-icon" href="https://low-level-luke.me/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+</noscript>
+<script>
+    if (localStorage.getItem("pref-theme") === "light") {
+        document.querySelector("html").dataset.theme = 'light';
+    }
+
+</script><meta property="og:url" content="https://low-level-luke.me/braindumps/lsm-trees/">
+  <meta property="og:site_name" content="low-level-luke">
+  <meta property="og:title" content="Log-Structured Merge Trees">
+  <meta property="og:description" content="How LSM trees trade read performance for fast writes, and what I got wrong along the way">
+  <meta property="og:locale" content="en_gb">
+  <meta property="og:type" content="article">
+    <meta property="article:published_time" content="2026-04-07T00:00:00Z">
+  <meta property="article:tag" content="databases">
+  <meta property="article:tag" content="data-structures">
+  <meta property="article:tag" content="storage">
+
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Log-Structured Merge Trees">
+  <meta name="twitter:description" content="How LSM trees trade read performance for fast writes, and what I got wrong along the way">
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Braindumps",
+      "item": "https://low-level-luke.me/braindumps/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "Log-Structured Merge Trees",
+      "item": "https://low-level-luke.me/braindumps/lsm-trees/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Log-Structured Merge Trees",
+  "name": "Log-Structured Merge Trees",
+  "description": "How LSM trees trade read performance for fast writes, and what I got wrong along the way",
+  "keywords": [
+    "databases", "data-structures", "storage"
+  ],
+  "articleBody": "My Notes In an LSM tree writes go to memory first to a data structure named memtable where the data is sorted. Data will also be written to a write ahead log so if the machine crashes while there is data in the memory that has not been flushed the data is not lost as we can just replay the entries in the write ahead log.\nWhen the data gets to a certain size or time has passed data is flushed to the disk where two memtables will exist at once in memory, one that is immutable that is getting written to the disk and another one that is the new one where new writes will go to. But if the data was being read before the flush they will use the old memtable in memory not the new one.\nThe file format that the LSM uses on disk is an SSTable (sorted string table) and they have a sparse index which allows data to be searched and have a bloom filter so can tell for sure if there is no data and be pretty sure if there is some data on the file depending on how good the hash function is. Also SSTables are immutable.\nWhen the data is written to disk there are multiple levels of data that exist where a level is just a multiple of flushed data from the memory and every level above is normally 10x the size and the entries in the level are normally merged together with a level from above and then that data is also in the level above.\nAlso when reading the data will read the new data first until a match is found for that key and when that is found since its the new data its the most recent.\n What I Got Wrong   I said readers use the old memtable not the new one during a flush. Readers actually check both - the new active memtable and the frozen one being flushed. A key could have been written to the new memtable after the freeze, so you need to check it too.\n  I didn’t mention deletes at all. You can’t remove a key from an SSTable because SSTables are immutable. Instead you write a tombstone - a special marker that says “this key has been deleted.” During compaction the tombstone and any older versions of that key get cleaned up.\n  My description of levels is muddled. Only L0 contains freshly flushed data from memory. Higher levels (L1, L2, …) are formed through compaction, not direct flushing. Compaction merges data from a lower level up into the next one. Also SSTables in L0 can have overlapping key ranges, but within each level above L0 key ranges don’t overlap.\n  I said the bloom filter accuracy depends on “how good the hash function is.\" The false positive rate of a bloom filter depends on the number of hash functions used and the size of the bit array, not just the quality of a single hash function.\n  I said “the data is sorted” but didn’t say how. The memtable is a sorted data structure (usually a skip list or red-black tree), so data is sorted on insert - not as a separate step. When flushed, it’s already in order. Compaction just merge-sorts already-sorted SSTables together.\n  I didn’t mention what happens to the WAL after a flush. Once the SSTable is safely written to disk, the corresponding WAL segment can be discarded since the data is now durable on disk.\n   How LSM Trees Actually Work An LSM tree (Log-Structured Merge Tree) is a data structure designed to make writes very fast at the cost of slower reads. It’s used in databases like LevelDB, RocksDB, Cassandra, and HBase.\nWriting When a write comes in, two things happen:\n The write is appended to a Write-Ahead Log (WAL) on disk. This is a sequential append so it’s fast, and it exists purely for crash recovery. The write is inserted into the memtable, an in-memory sorted data structure (typically a skip list or red-black tree).  Because both operations are either sequential I/O (the WAL append) or purely in-memory (the memtable insert), writes are very fast. There’s no random disk I/O involved.\nFlushing to Disk When the memtable reaches a configured size threshold, it needs to be flushed to disk:\n The current memtable is frozen - it becomes immutable and stops accepting new writes. A new empty memtable is created, and all incoming writes go there. The frozen memtable is written to disk as an SSTable (Sorted String Table) in the background. Since the memtable is already sorted, the SSTable comes out sorted too. Once the SSTable is safely on disk, the corresponding WAL segment can be discarded.  Readers can still read from both the frozen memtable and the new one during this process. There’s no downtime.\nSSTables An SSTable is an immutable, sorted file on disk. Each one contains:\n Data blocks: the actual key-value pairs, sorted by key. An index block: a sparse index mapping keys to the data block offsets where they can be found. A bloom filter: a probabilistic data structure that can tell you if a key is definitely not in this SSTable (and with some false positive rate, if it might be).  Because SSTables are sorted, you can do binary search within them. Because they’re immutable, they’re simple to reason about and cache.\nLevels and Compaction SSTables are organised into levels:\n L0: where freshly flushed SSTables land. SSTables in L0 can have overlapping key ranges since each one is just a snapshot of whatever was in the memtable at flush time. L1, L2, L3, …: each subsequent level is typically around 10x the size of the one above. Within each level (except L0), key ranges don’t overlap.  Compaction is the process of merging SSTables from one level into the next. When a level gets too full, some of its SSTables are selected and merge-sorted with the overlapping SSTables in the level below. This:\n Removes duplicate keys (keeping only the newest version). Removes tombstoned keys. Reduces the number of SSTables that need to be checked during reads. Reclaims disk space.  The downside is write amplification: the same data might be rewritten multiple times as it gets compacted through the levels. There’s also space amplification since multiple versions of the same key can exist across levels until compaction cleans them up.\nReading To read a key, you check from newest data to oldest:\n Check the active memtable. Check the frozen memtable (if one exists during a flush). Check SSTables on disk, starting from the newest level (L0) and working down.  At each SSTable, the bloom filter is checked first. If it says the key is definitely not there, that SSTable is skipped entirely. For a point lookup, you stop as soon as you find the key. This means reads might be slow in the worst case (key doesn’t exist, so you check everything), but bloom filters make this rare in practice.\nFor a range query, you need to check all levels since the range could span data across multiple SSTables. The sorted nature of SSTables makes this a merge operation across the levels.\nDeletes and Tombstones You can’t delete a key by removing it from an SSTable because SSTables are immutable. Instead, you write a tombstone - a special marker that says “this key has been deleted.” The tombstone goes into the memtable just like a normal write.\nWhen a read encounters a tombstone, it knows the key has been deleted and returns “not found” even if older SSTables still contain the key. During compaction, tombstones and the old versions they shadow are both cleaned up.\nTradeoffs     LSM Tree B-Tree     Writes Fast (sequential memory + WAL append) Slower (random I/O to update pages in place)   Point reads Slower (may check multiple levels) Fast (single tree traversal)   Range reads Requires merging across levels Single sorted traversal   Space Amplified (multiple versions until compaction) Compact (in-place updates)   Write amplification High (data rewritten during compaction) Lower    LSM trees are a good fit when your workload is write-heavy and you can tolerate some read overhead. This is why they’re popular in time-series databases, logging systems, and write-heavy OLTP workloads.\nP.S. If there are any mistakes please let me know, I’m by no means an expert.\n",
+  "wordCount" : "1385",
+  "inLanguage": "en",
+  "datePublished": "2026-04-07T00:00:00Z",
+  "dateModified": "2026-04-07T00:00:00Z",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://low-level-luke.me/braindumps/lsm-trees/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "low-level-luke",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://low-level-luke.me/favicon.ico"
+    }
+  }
+}
+</script>
+</head>
+<body id="top">
+    <header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="https://low-level-luke.me/" accesskey="h" title="low-level-luke (Alt + H)">low-level-luke</a>
+            <div class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)" aria-label="Toggle theme">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="18" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="18" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="https://low-level-luke.me/" title="Home">
+                    <span>Home</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://low-level-luke.me/tags/" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://low-level-luke.me/braindumps/" title="Braindumps">
+                    <span>Braindumps</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://low-level-luke.me/archives/" title="Archive">
+                    <span>Archive</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    <div class="breadcrumbs"><a href="https://low-level-luke.me/">Home</a>&nbsp;»&nbsp;<a href="https://low-level-luke.me/braindumps/">Braindumps</a></div>
+    <h1 class="post-title entry-hint-parent">
+      Log-Structured Merge Trees
+    </h1>
+    <div class="post-meta"><span title='2026-04-07 00:00:00 +0000 UTC'>April 7, 2026</span>&nbsp;·&nbsp;<span>7 min</span>
+
+</div>
+  </header> <div class="toc">
+    <details >
+        <summary accesskey="c" title="(Alt + C)">
+            <span class="details">Table of Contents</span>
+        </summary>
+
+        <div class="inner"><ul>
+                <li>
+                    <a href="#my-notes" aria-label="My Notes">My Notes</a></li>
+                <li>
+                    <a href="#what-i-got-wrong" aria-label="What I Got Wrong">What I Got Wrong</a></li>
+                <li>
+                    <a href="#how-lsm-trees-actually-work" aria-label="How LSM Trees Actually Work">How LSM Trees Actually Work</a><ul>
+                        
+                <li>
+                    <a href="#writing" aria-label="Writing">Writing</a></li>
+                <li>
+                    <a href="#flushing-to-disk" aria-label="Flushing to Disk">Flushing to Disk</a></li>
+                <li>
+                    <a href="#sstables" aria-label="SSTables">SSTables</a></li>
+                <li>
+                    <a href="#levels-and-compaction" aria-label="Levels and Compaction">Levels and Compaction</a></li>
+                <li>
+                    <a href="#reading" aria-label="Reading">Reading</a></li>
+                <li>
+                    <a href="#deletes-and-tombstones" aria-label="Deletes and Tombstones">Deletes and Tombstones</a></li>
+                <li>
+                    <a href="#tradeoffs" aria-label="Tradeoffs">Tradeoffs</a>
+                </li>
+            </ul>
+            </li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+  <div class="post-content"><h2 id="my-notes">My Notes<a hidden class="anchor" aria-hidden="true" href="#my-notes">#</a></h2>
+<p>In an LSM tree writes go to memory first to a data structure named memtable where the data is sorted. Data will also be written to a write ahead log so if the machine crashes while there is data in the memory that has not been flushed the data is not lost as we can just replay the entries in the write ahead log.</p>
+<p>When the data gets to a certain size or time has passed data is flushed to the disk where two memtables will exist at once in memory, one that is immutable that is getting written to the disk and another one that is the new one where new writes will go to. But if the data was being read before the flush they will use the old memtable in memory not the new one.</p>
+<p>The file format that the LSM uses on disk is an SSTable (sorted string table) and they have a sparse index which allows data to be searched and have a bloom filter so can tell for sure if there is no data and be pretty sure if there is some data on the file depending on how good the hash function is. Also SSTables are immutable.</p>
+<p>When the data is written to disk there are multiple levels of data that exist where a level is just a multiple of flushed data from the memory and every level above is normally 10x the size and the entries in the level are normally merged together with a level from above and then that data is also in the level above.</p>
+<p>Also when reading the data will read the new data first until a match is found for that key and when that is found since its the new data its the most recent.</p>
+<hr>
+<h2 id="what-i-got-wrong">What I Got Wrong<a hidden class="anchor" aria-hidden="true" href="#what-i-got-wrong">#</a></h2>
+<ul>
+<li>
+<p><strong>I said readers use the old memtable not the new one during a flush.</strong> Readers actually check both - the new active memtable and the frozen one being flushed. A key could have been written to the new memtable after the freeze, so you need to check it too.</p>
+</li>
+<li>
+<p><strong>I didn&rsquo;t mention deletes at all.</strong> You can&rsquo;t remove a key from an SSTable because SSTables are immutable. Instead you write a tombstone - a special marker that says &ldquo;this key has been deleted.&rdquo; During compaction the tombstone and any older versions of that key get cleaned up.</p>
+</li>
+<li>
+<p><strong>My description of levels is muddled.</strong> Only L0 contains freshly flushed data from memory. Higher levels (L1, L2, &hellip;) are formed through compaction, not direct flushing. Compaction merges data from a lower level up into the next one. Also SSTables in L0 can have overlapping key ranges, but within each level above L0 key ranges don&rsquo;t overlap.</p>
+</li>
+<li>
+<p><strong>I said the bloom filter accuracy depends on &ldquo;how good the hash function is.&quot;</strong> The false positive rate of a bloom filter depends on the number of hash functions used and the size of the bit array, not just the quality of a single hash function.</p>
+</li>
+<li>
+<p><strong>I said &ldquo;the data is sorted&rdquo; but didn&rsquo;t say how.</strong> The memtable is a sorted data structure (usually a skip list or red-black tree), so data is sorted on insert - not as a separate step. When flushed, it&rsquo;s already in order. Compaction just merge-sorts already-sorted SSTables together.</p>
+</li>
+<li>
+<p><strong>I didn&rsquo;t mention what happens to the WAL after a flush.</strong> Once the SSTable is safely written to disk, the corresponding WAL segment can be discarded since the data is now durable on disk.</p>
+</li>
+</ul>
+<hr>
+<h2 id="how-lsm-trees-actually-work">How LSM Trees Actually Work<a hidden class="anchor" aria-hidden="true" href="#how-lsm-trees-actually-work">#</a></h2>
+<p>An LSM tree (Log-Structured Merge Tree) is a data structure designed to make writes very fast at the cost of slower reads. It&rsquo;s used in databases like LevelDB, RocksDB, Cassandra, and HBase.</p>
+<h3 id="writing">Writing<a hidden class="anchor" aria-hidden="true" href="#writing">#</a></h3>
+<p>When a write comes in, two things happen:</p>
+<ol>
+<li>The write is appended to a <strong>Write-Ahead Log (WAL)</strong> on disk. This is a sequential append so it&rsquo;s fast, and it exists purely for crash recovery.</li>
+<li>The write is inserted into the <strong>memtable</strong>, an in-memory sorted data structure (typically a skip list or red-black tree).</li>
+</ol>
+<p>Because both operations are either sequential I/O (the WAL append) or purely in-memory (the memtable insert), writes are very fast. There&rsquo;s no random disk I/O involved.</p>
+<h3 id="flushing-to-disk">Flushing to Disk<a hidden class="anchor" aria-hidden="true" href="#flushing-to-disk">#</a></h3>
+<p>When the memtable reaches a configured size threshold, it needs to be flushed to disk:</p>
+<ol>
+<li>The current memtable is <strong>frozen</strong> - it becomes immutable and stops accepting new writes.</li>
+<li>A <strong>new empty memtable</strong> is created, and all incoming writes go there.</li>
+<li>The frozen memtable is written to disk as an <strong>SSTable</strong> (Sorted String Table) in the background. Since the memtable is already sorted, the SSTable comes out sorted too.</li>
+<li>Once the SSTable is safely on disk, the corresponding WAL segment can be discarded.</li>
+</ol>
+<p>Readers can still read from both the frozen memtable and the new one during this process. There&rsquo;s no downtime.</p>
+<h3 id="sstables">SSTables<a hidden class="anchor" aria-hidden="true" href="#sstables">#</a></h3>
+<p>An SSTable is an immutable, sorted file on disk. Each one contains:</p>
+<ul>
+<li><strong>Data blocks</strong>: the actual key-value pairs, sorted by key.</li>
+<li><strong>An index block</strong>: a sparse index mapping keys to the data block offsets where they can be found.</li>
+<li><strong>A bloom filter</strong>: a probabilistic data structure that can tell you if a key is <em>definitely not</em> in this SSTable (and with some false positive rate, if it <em>might</em> be).</li>
+</ul>
+<p>Because SSTables are sorted, you can do binary search within them. Because they&rsquo;re immutable, they&rsquo;re simple to reason about and cache.</p>
+<h3 id="levels-and-compaction">Levels and Compaction<a hidden class="anchor" aria-hidden="true" href="#levels-and-compaction">#</a></h3>
+<p>SSTables are organised into levels:</p>
+<ul>
+<li><strong>L0</strong>: where freshly flushed SSTables land. SSTables in L0 can have overlapping key ranges since each one is just a snapshot of whatever was in the memtable at flush time.</li>
+<li><strong>L1, L2, L3, &hellip;</strong>: each subsequent level is typically around 10x the size of the one above. Within each level (except L0), key ranges don&rsquo;t overlap.</li>
+</ul>
+<p><strong>Compaction</strong> is the process of merging SSTables from one level into the next. When a level gets too full, some of its SSTables are selected and merge-sorted with the overlapping SSTables in the level below. This:</p>
+<ul>
+<li>Removes duplicate keys (keeping only the newest version).</li>
+<li>Removes tombstoned keys.</li>
+<li>Reduces the number of SSTables that need to be checked during reads.</li>
+<li>Reclaims disk space.</li>
+</ul>
+<p>The downside is <strong>write amplification</strong>: the same data might be rewritten multiple times as it gets compacted through the levels. There&rsquo;s also <strong>space amplification</strong> since multiple versions of the same key can exist across levels until compaction cleans them up.</p>
+<h3 id="reading">Reading<a hidden class="anchor" aria-hidden="true" href="#reading">#</a></h3>
+<p>To read a key, you check from newest data to oldest:</p>
+<ol>
+<li>Check the <strong>active memtable</strong>.</li>
+<li>Check the <strong>frozen memtable</strong> (if one exists during a flush).</li>
+<li>Check SSTables on disk, starting from the newest level (L0) and working down.</li>
+</ol>
+<p>At each SSTable, the bloom filter is checked first. If it says the key is definitely not there, that SSTable is skipped entirely. For a point lookup, you stop as soon as you find the key. This means reads might be slow in the worst case (key doesn&rsquo;t exist, so you check everything), but bloom filters make this rare in practice.</p>
+<p>For a <strong>range query</strong>, you need to check all levels since the range could span data across multiple SSTables. The sorted nature of SSTables makes this a merge operation across the levels.</p>
+<h3 id="deletes-and-tombstones">Deletes and Tombstones<a hidden class="anchor" aria-hidden="true" href="#deletes-and-tombstones">#</a></h3>
+<p>You can&rsquo;t delete a key by removing it from an SSTable because SSTables are immutable. Instead, you write a <strong>tombstone</strong> - a special marker that says &ldquo;this key has been deleted.&rdquo; The tombstone goes into the memtable just like a normal write.</p>
+<p>When a read encounters a tombstone, it knows the key has been deleted and returns &ldquo;not found&rdquo; even if older SSTables still contain the key. During compaction, tombstones and the old versions they shadow are both cleaned up.</p>
+<h3 id="tradeoffs">Tradeoffs<a hidden class="anchor" aria-hidden="true" href="#tradeoffs">#</a></h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>LSM Tree</th>
+<th>B-Tree</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Writes</strong></td>
+<td>Fast (sequential memory + WAL append)</td>
+<td>Slower (random I/O to update pages in place)</td>
+</tr>
+<tr>
+<td><strong>Point reads</strong></td>
+<td>Slower (may check multiple levels)</td>
+<td>Fast (single tree traversal)</td>
+</tr>
+<tr>
+<td><strong>Range reads</strong></td>
+<td>Requires merging across levels</td>
+<td>Single sorted traversal</td>
+</tr>
+<tr>
+<td><strong>Space</strong></td>
+<td>Amplified (multiple versions until compaction)</td>
+<td>Compact (in-place updates)</td>
+</tr>
+<tr>
+<td><strong>Write amplification</strong></td>
+<td>High (data rewritten during compaction)</td>
+<td>Lower</td>
+</tr>
+</tbody>
+</table>
+<p>LSM trees are a good fit when your workload is write-heavy and you can tolerate some read overhead. This is why they&rsquo;re popular in time-series databases, logging systems, and write-heavy OLTP workloads.</p>
+<p>P.S. If there are any mistakes please let me know, I&rsquo;m by no means an expert.</p>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="https://low-level-luke.me/tags/databases/">databases</a></li>
+      <li><a href="https://low-level-luke.me/tags/data-structures/">data-structures</a></li>
+      <li><a href="https://low-level-luke.me/tags/storage/">storage</a></li>
+    </ul><div class="social-icons" align="center">
+    <a href="mailto:luke61996@gmail.com" target="_blank" rel="noopener noreferrer me"
+        title="Email">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 21" fill="none" stroke="currentColor" stroke-width="2"
+    stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+    <polyline points="22,6 12,13 2,6"></polyline>
+</svg>
+    </a>
+    <a href="https://x.com/MrDust0" target="_blank" rel="noopener noreferrer me"
+        title="X">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+    <path
+        d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z">
+    </path>
+</svg>
+    </a>
+    <a href="https://discord.com/users/323409278733910017" target="_blank" rel="noopener noreferrer me"
+        title="Discord">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 127.14 96.36" fill="currentColor" stroke="none" stroke-width="2"
+    stroke-linecap="round" stroke-linejoin="round">
+    <path
+        d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z" />
+</svg>
+    </a>
+</div>
+
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+        <span>&copy; 2026 <a href="https://low-level-luke.me/">low-level-luke</a></span> · 
+
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://github.com/adityatelange/hugo-PaperMod/" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu');
+    if (menu) {
+        
+        const scrollPosition = localStorage.getItem("menu-scroll-position");
+        if (scrollPosition) {
+            menu.scrollLeft = parseInt(scrollPosition, 10);
+        }
+        
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        const html = document.querySelector("html");
+        if (html.dataset.theme === "dark") {
+            html.dataset.theme = 'light';
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            html.dataset.theme = 'dark';
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerHTML = 'copy';
+
+        function copyingDone() {
+            copybutton.innerHTML = 'copied!';
+            setTimeout(() => {
+                copybutton.innerHTML = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>
