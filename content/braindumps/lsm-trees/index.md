@@ -6,6 +6,10 @@ summary: "How LSM trees trade read performance for fast writes, and what I got w
 draft: false
 ---
 
+*Trying to remember a topic from memory with no notes, then getting AI to correct it. Basically using active recall to help me remember things better and forcing myself to post it so I do it more often.*
+
+---
+
 ## My Notes
 
 In an LSM tree writes go to memory first to a data structure named memtable where the data is sorted. Data will also be written to a write ahead log so if the machine crashes while there is data in the memory that has not been flushed the data is not lost as we can just replay the entries in the write ahead log.
