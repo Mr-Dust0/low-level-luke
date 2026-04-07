@@ -1,7 +1,7 @@
 ---
 title: "Log-Structured Merge Trees"
 date: 2026-04-07
-tags: ["databases", "data-structures", "storage"]
+tags: ["braindump", "databases", "data-structures", "storage"]
 summary: "How LSM trees trade read performance for fast writes, and what I got wrong along the way"
 draft: false
 ---
