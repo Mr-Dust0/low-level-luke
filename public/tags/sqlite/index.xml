@@ -1,26 +1,19 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
-    <title>databases on low-level-luke</title>
-    <link>https://low-level-luke.me/tags/databases/</link>
-    <description>Recent content in databases on low-level-luke</description>
+    <title>sqlite on low-level-luke</title>
+    <link>https://low-level-luke.me/tags/sqlite/</link>
+    <description>Recent content in sqlite on low-level-luke</description>
     <generator>Hugo</generator>
     <language>en-gb</language>
     <lastBuildDate>Wed, 08 Apr 2026 00:00:00 +0000</lastBuildDate>
-    <atom:link href="https://low-level-luke.me/tags/databases/index.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="https://low-level-luke.me/tags/sqlite/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>SQLite Query Execution</title>
       <link>https://low-level-luke.me/braindumps/sqlite/</link>
       <pubDate>Wed, 08 Apr 2026 00:00:00 +0000</pubDate>
       <guid>https://low-level-luke.me/braindumps/sqlite/</guid>
       <description>How SQLite processes a query from SQL text to results, and what I got wrong along the way</description>
-    </item>
-    <item>
-      <title>Log-Structured Merge Trees</title>
-      <link>https://low-level-luke.me/braindumps/lsm-trees/</link>
-      <pubDate>Tue, 07 Apr 2026 00:00:00 +0000</pubDate>
-      <guid>https://low-level-luke.me/braindumps/lsm-trees/</guid>
-      <description>How LSM trees trade read performance for fast writes, and what I got wrong along the way</description>
     </item>
   </channel>
 </rss>

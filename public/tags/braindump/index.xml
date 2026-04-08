@@ -6,8 +6,15 @@
     <description>Recent content in braindump on low-level-luke</description>
     <generator>Hugo</generator>
     <language>en-gb</language>
-    <lastBuildDate>Tue, 07 Apr 2026 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Wed, 08 Apr 2026 00:00:00 +0000</lastBuildDate>
     <atom:link href="https://low-level-luke.me/tags/braindump/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>SQLite Query Execution</title>
+      <link>https://low-level-luke.me/braindumps/sqlite/</link>
+      <pubDate>Wed, 08 Apr 2026 00:00:00 +0000</pubDate>
+      <guid>https://low-level-luke.me/braindumps/sqlite/</guid>
+      <description>How SQLite processes a query from SQL text to results, and what I got wrong along the way</description>
+    </item>
     <item>
       <title>Log-Structured Merge Trees</title>
       <link>https://low-level-luke.me/braindumps/lsm-trees/</link>
