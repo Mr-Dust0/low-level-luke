@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto" data-theme="dark">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>Linearizability | low-level-luke</title>
+<meta name="keywords" content="braindump, databases, distributed-systems, consistency">
+<meta name="description" content="What linearizability means in distributed systems, and what I got wrong along the way">
+<meta name="author" content="">
+<link rel="canonical" href="https://low-level-luke.me/braindumps/linearizability/">
+<link crossorigin="anonymous" href="/assets/css/stylesheet.da3211e5ef867bf2b75fd5a6515cfed7195c011e8ab735694e203810a827097b.css" integrity="sha256-2jIR5e&#43;Ge/K3X9WmUVz&#43;1xlcAR6KtzVpTiA4EKgnCXs=" rel="preload stylesheet" as="style">
+<link rel="icon" href="https://low-level-luke.me/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://low-level-luke.me/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://low-level-luke.me/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://low-level-luke.me/apple-touch-icon.png">
+<link rel="mask-icon" href="https://low-level-luke.me/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+</noscript>
+<script>
+    if (localStorage.getItem("pref-theme") === "light") {
+        document.querySelector("html").dataset.theme = 'light';
+    }
+
+</script><meta property="og:url" content="https://low-level-luke.me/braindumps/linearizability/">
+  <meta property="og:site_name" content="low-level-luke">
+  <meta property="og:title" content="Linearizability">
+  <meta property="og:description" content="What linearizability means in distributed systems, and what I got wrong along the way">
+  <meta property="og:locale" content="en_gb">
+  <meta property="og:type" content="article">
+    <meta property="article:published_time" content="2026-04-09T00:00:00Z">
+  <meta property="article:tag" content="braindump">
+  <meta property="article:tag" content="databases">
+  <meta property="article:tag" content="distributed-systems">
+  <meta property="article:tag" content="consistency">
+
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Linearizability">
+  <meta name="twitter:description" content="What linearizability means in distributed systems, and what I got wrong along the way">
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Braindumps",
+      "item": "https://low-level-luke.me/braindumps/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "Linearizability",
+      "item": "https://low-level-luke.me/braindumps/linearizability/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Linearizability",
+  "name": "Linearizability",
+  "description": "What linearizability means in distributed systems, and what I got wrong along the way",
+  "keywords": [
+    "braindump", "databases", "distributed-systems", "consistency"
+  ],
+  "articleBody": "Trying to remember a topic from memory with no notes, then getting AI to correct it. Basically using active recall to help me remember things better and forcing myself to post it so I do it more often.\n My Notes Linaziabity is an contrait on databases where all operations are atomtic so the data so can only be saw in correct state and no stale data can be saw. So the order of the writes needs to be correct and all reads most get the correct data can’t get any stale reads. This is pretty easy to do with one db but as you get distributed databases it gets harder since you have to make sure that the data is replicated to all the other databaes before appecting the write or read and that the data is most up to date. You have PAC (partions, availablity, consitenty ) and you can also have 2 an bit like cap\n What I Got Wrong   I described linearizability as “all operations are atomic so data can only be seen in a correct state.\" That’s closer to a description of general consistency or atomicity. Linearizability is specifically about each operation appearing to take effect instantaneously at some single point between its invocation and its response. The critical part is the real-time ordering guarantee: if operation A completes before operation B starts, then A must appear before B. This is what makes it stronger than other consistency models.\n  I didn’t distinguish linearizability from serializability. These are different guarantees. Linearizability is about individual operations on individual objects respecting real-time order. Serializability is about transactions appearing to execute in some serial order (but that order doesn’t have to match real time). “Strict serializability” combines both.\n  I said “PAC (partitions, availability, consistency).\" It’s the CAP theorem, not PAC. And linearizability is specifically the “C” in CAP - it’s the formal consistency model that CAP refers to.\n  I said you need to “replicate to all the other databases before accepting.\" This describes synchronous replication to every node, which is one approach but not the only one. Consensus protocols like Raft and Paxos only need a majority (quorum) of nodes to agree, not all of them. A node can be down and the system still makes progress.\n  I said “pretty easy to do with one db.\" This is true but worth being precise about why: on a single node there’s one copy of the data and a single thread of execution (or locks), so operations are naturally ordered. The entire challenge of linearizability comes from replication - multiple copies of data that need to appear as one.\n  I didn’t mention how linearizability is actually achieved in distributed systems. The standard approach is consensus protocols (Paxos, Raft, ZAB) that get a quorum of nodes to agree on an ordering of operations. Leader-based replication can also work if reads go through the leader.\n   How Linearizability Actually Works Linearizability is a consistency guarantee for distributed systems. It means the system behaves as if there’s only a single copy of the data and every operation happens atomically at one point in time, even though the data may be replicated across many nodes.\nThe Core Property An operation (read or write) takes some real time - it starts with an invocation and ends with a response. Linearizability requires that:\n Every operation appears to take effect at a single instant somewhere between its invocation and response. This ordering respects real time. If operation A finishes before operation B starts, then A must appear before B.  This means once a write completes and a subsequent read starts, that read must see the write (or something newer). No going back in time.\nWhy It’s Easy on a Single Node On a single database, linearizability is essentially free. There’s one copy of the data, and the database serialises access to it (via locks or a single-threaded execution model). Operations are naturally ordered.\nWhy It’s Hard in Distributed Systems When data is replicated across multiple nodes, each node has its own copy. The challenge is making all these copies appear as one. Without coordination, different nodes can disagree about the current state:\n A write reaches node A but hasn’t reached node B yet. A client reads from node B and gets stale data. Another client reads from node A and gets the new data. From the outside, it looks like time went backwards.  How It’s Achieved Consensus Protocols The standard approach is to use a consensus protocol like Raft, Paxos, or ZAB (used by ZooKeeper). These protocols ensure that a quorum (majority) of nodes agrees on the order of operations before they’re committed.\nKey point: you only need a majority, not all nodes. In a 5-node cluster, 3 agreeing is enough. This means the system can tolerate some nodes being down.\nLeader-Based Approaches A simpler approach: all reads and writes go through a single leader node. The leader orders all operations, so linearizability is straightforward. The tradeoff is that the leader is a bottleneck and a single point of failure (though leader election via consensus can handle failover).\nQuorum Reads and Writes Systems like Dynamo-style databases use quorum reads and writes (e.g., read from R nodes, write to W nodes, where R + W  N). However, quorum reads/writes alone are not sufficient for linearizability in all cases. Additional coordination (like read-repair or consensus) is needed to close the gaps.\nCAP Theorem The CAP theorem states that a distributed system can provide at most two of three guarantees:\n Consistency (linearizability specifically) Availability (every request gets a response) Partition tolerance (the system keeps working despite network splits)  Since network partitions are unavoidable in practice, the real choice is between CP (linearizable but may become unavailable during partitions) and AP (always available but may return stale data during partitions).\nLinearizability vs Serializability     Linearizability Serializability     Scope Single operations on single objects Transactions across multiple objects   Ordering Must respect real-time order Any serial order is acceptable   Guarantee Recency - reads see the latest write Isolation - transactions don’t interfere   Where it matters Distributed replication Database transaction processing    Strict serializability (also called “one-copy serializability”) provides both: transactions that are serializable and whose order matches real time. Systems like Spanner and CockroachDB aim for this.\nTradeoffs     Linearizable Systems Eventually Consistent Systems     Correctness Strong - behaves as single copy Weak - stale reads possible   Latency Higher (coordination overhead) Lower (no waiting for agreement)   Availability Reduced during partitions (CP) Maintained during partitions (AP)   Throughput Lower (consensus bottleneck) Higher (no coordination)   Use cases Leader election, distributed locks, financial systems Caching, social feeds, DNS    Linearizability is the strongest single-object consistency model but it comes at a cost. Many systems choose weaker models (causal consistency, eventual consistency) when the application can tolerate them, and only use linearizability where correctness demands it.\nP.S. If there are any mistakes please let me know, I’m by no means an expert.\n",
+  "wordCount" : "1146",
+  "inLanguage": "en",
+  "datePublished": "2026-04-09T00:00:00Z",
+  "dateModified": "2026-04-09T00:00:00Z",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://low-level-luke.me/braindumps/linearizability/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "low-level-luke",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://low-level-luke.me/favicon.ico"
+    }
+  }
+}
+</script>
+</head>
+<body id="top">
+    <header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="https://low-level-luke.me/" accesskey="h" title="low-level-luke (Alt + H)">low-level-luke</a>
+            <div class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)" aria-label="Toggle theme">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="18" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="18" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="https://low-level-luke.me/" title="Home">
+                    <span>Home</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://low-level-luke.me/tags/" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://low-level-luke.me/braindumps/" title="Braindumps">
+                    <span>Braindumps</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://low-level-luke.me/archives/" title="Archive">
+                    <span>Archive</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    <div class="breadcrumbs"><a href="https://low-level-luke.me/">Home</a>&nbsp;»&nbsp;<a href="https://low-level-luke.me/braindumps/">Braindumps</a></div>
+    <h1 class="post-title entry-hint-parent">
+      Linearizability
+    </h1>
+    <div class="post-meta"><span title='2026-04-09 00:00:00 +0000 UTC'>April 9, 2026</span>&nbsp;·&nbsp;<span>6 min</span>
+
+</div>
+  </header> <div class="toc">
+    <details >
+        <summary accesskey="c" title="(Alt + C)">
+            <span class="details">Table of Contents</span>
+        </summary>
+
+        <div class="inner"><ul>
+                <li>
+                    <a href="#my-notes" aria-label="My Notes">My Notes</a></li>
+                <li>
+                    <a href="#what-i-got-wrong" aria-label="What I Got Wrong">What I Got Wrong</a></li>
+                <li>
+                    <a href="#how-linearizability-actually-works" aria-label="How Linearizability Actually Works">How Linearizability Actually Works</a><ul>
+                        
+                <li>
+                    <a href="#the-core-property" aria-label="The Core Property">The Core Property</a></li>
+                <li>
+                    <a href="#why-its-easy-on-a-single-node" aria-label="Why It&rsquo;s Easy on a Single Node">Why It&rsquo;s Easy on a Single Node</a></li>
+                <li>
+                    <a href="#why-its-hard-in-distributed-systems" aria-label="Why It&rsquo;s Hard in Distributed Systems">Why It&rsquo;s Hard in Distributed Systems</a></li>
+                <li>
+                    <a href="#how-its-achieved" aria-label="How It&rsquo;s Achieved">How It&rsquo;s Achieved</a><ul>
+                        
+                <li>
+                    <a href="#consensus-protocols" aria-label="Consensus Protocols">Consensus Protocols</a></li>
+                <li>
+                    <a href="#leader-based-approaches" aria-label="Leader-Based Approaches">Leader-Based Approaches</a></li>
+                <li>
+                    <a href="#quorum-reads-and-writes" aria-label="Quorum Reads and Writes">Quorum Reads and Writes</a></li></ul>
+                </li>
+                <li>
+                    <a href="#cap-theorem" aria-label="CAP Theorem">CAP Theorem</a></li>
+                <li>
+                    <a href="#linearizability-vs-serializability" aria-label="Linearizability vs Serializability">Linearizability vs Serializability</a></li>
+                <li>
+                    <a href="#tradeoffs" aria-label="Tradeoffs">Tradeoffs</a>
+                </li>
+            </ul>
+            </li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+  <div class="post-content"><p><em>Trying to remember a topic from memory with no notes, then getting AI to correct it. Basically using active recall to help me remember things better and forcing myself to post it so I do it more often.</em></p>
+<hr>
+<h2 id="my-notes">My Notes<a hidden class="anchor" aria-hidden="true" href="#my-notes">#</a></h2>
+<p>Linaziabity is an contrait on databases where all operations are atomtic so the data so can only be saw in correct state and no stale data can be saw. So the order of the writes needs to be correct and all reads most get the correct data can&rsquo;t get any stale reads. This is pretty easy to do with one db but as you get distributed databases it gets harder since you have to make sure that the data is replicated to all the other databaes before appecting the write or read and that the data is most up to date. You have PAC (partions, availablity, consitenty ) and you can also have 2 an bit like cap</p>
+<hr>
+<h2 id="what-i-got-wrong">What I Got Wrong<a hidden class="anchor" aria-hidden="true" href="#what-i-got-wrong">#</a></h2>
+<ul>
+<li>
+<p><strong>I described linearizability as &ldquo;all operations are atomic so data can only be seen in a correct state.&quot;</strong> That&rsquo;s closer to a description of general consistency or atomicity. Linearizability is specifically about each operation appearing to take effect instantaneously at some single point between its invocation and its response. The critical part is the real-time ordering guarantee: if operation A completes before operation B starts, then A must appear before B. This is what makes it stronger than other consistency models.</p>
+</li>
+<li>
+<p><strong>I didn&rsquo;t distinguish linearizability from serializability.</strong> These are different guarantees. Linearizability is about individual operations on individual objects respecting real-time order. Serializability is about transactions appearing to execute in some serial order (but that order doesn&rsquo;t have to match real time). &ldquo;Strict serializability&rdquo; combines both.</p>
+</li>
+<li>
+<p><strong>I said &ldquo;PAC (partitions, availability, consistency).&quot;</strong> It&rsquo;s the CAP theorem, not PAC. And linearizability is specifically the &ldquo;C&rdquo; in CAP - it&rsquo;s the formal consistency model that CAP refers to.</p>
+</li>
+<li>
+<p><strong>I said you need to &ldquo;replicate to all the other databases before accepting.&quot;</strong> This describes synchronous replication to every node, which is one approach but not the only one. Consensus protocols like Raft and Paxos only need a majority (quorum) of nodes to agree, not all of them. A node can be down and the system still makes progress.</p>
+</li>
+<li>
+<p><strong>I said &ldquo;pretty easy to do with one db.&quot;</strong> This is true but worth being precise about why: on a single node there&rsquo;s one copy of the data and a single thread of execution (or locks), so operations are naturally ordered. The entire challenge of linearizability comes from replication - multiple copies of data that need to appear as one.</p>
+</li>
+<li>
+<p><strong>I didn&rsquo;t mention how linearizability is actually achieved in distributed systems.</strong> The standard approach is consensus protocols (Paxos, Raft, ZAB) that get a quorum of nodes to agree on an ordering of operations. Leader-based replication can also work if reads go through the leader.</p>
+</li>
+</ul>
+<hr>
+<h2 id="how-linearizability-actually-works">How Linearizability Actually Works<a hidden class="anchor" aria-hidden="true" href="#how-linearizability-actually-works">#</a></h2>
+<p>Linearizability is a consistency guarantee for distributed systems. It means the system behaves as if there&rsquo;s only a single copy of the data and every operation happens atomically at one point in time, even though the data may be replicated across many nodes.</p>
+<h3 id="the-core-property">The Core Property<a hidden class="anchor" aria-hidden="true" href="#the-core-property">#</a></h3>
+<p>An operation (read or write) takes some real time - it starts with an invocation and ends with a response. Linearizability requires that:</p>
+<ol>
+<li>Every operation appears to take effect <strong>at a single instant</strong> somewhere between its invocation and response.</li>
+<li>This ordering <strong>respects real time</strong>. If operation A finishes before operation B starts, then A must appear before B.</li>
+</ol>
+<p>This means once a write completes and a subsequent read starts, that read must see the write (or something newer). No going back in time.</p>
+<h3 id="why-its-easy-on-a-single-node">Why It&rsquo;s Easy on a Single Node<a hidden class="anchor" aria-hidden="true" href="#why-its-easy-on-a-single-node">#</a></h3>
+<p>On a single database, linearizability is essentially free. There&rsquo;s one copy of the data, and the database serialises access to it (via locks or a single-threaded execution model). Operations are naturally ordered.</p>
+<h3 id="why-its-hard-in-distributed-systems">Why It&rsquo;s Hard in Distributed Systems<a hidden class="anchor" aria-hidden="true" href="#why-its-hard-in-distributed-systems">#</a></h3>
+<p>When data is replicated across multiple nodes, each node has its own copy. The challenge is making all these copies appear as one. Without coordination, different nodes can disagree about the current state:</p>
+<ul>
+<li>A write reaches node A but hasn&rsquo;t reached node B yet.</li>
+<li>A client reads from node B and gets stale data.</li>
+<li>Another client reads from node A and gets the new data.</li>
+<li>From the outside, it looks like time went backwards.</li>
+</ul>
+<h3 id="how-its-achieved">How It&rsquo;s Achieved<a hidden class="anchor" aria-hidden="true" href="#how-its-achieved">#</a></h3>
+<h4 id="consensus-protocols">Consensus Protocols<a hidden class="anchor" aria-hidden="true" href="#consensus-protocols">#</a></h4>
+<p>The standard approach is to use a consensus protocol like <strong>Raft</strong>, <strong>Paxos</strong>, or <strong>ZAB</strong> (used by ZooKeeper). These protocols ensure that a <strong>quorum</strong> (majority) of nodes agrees on the order of operations before they&rsquo;re committed.</p>
+<p>Key point: you only need a majority, not all nodes. In a 5-node cluster, 3 agreeing is enough. This means the system can tolerate some nodes being down.</p>
+<h4 id="leader-based-approaches">Leader-Based Approaches<a hidden class="anchor" aria-hidden="true" href="#leader-based-approaches">#</a></h4>
+<p>A simpler approach: all reads and writes go through a single <strong>leader</strong> node. The leader orders all operations, so linearizability is straightforward. The tradeoff is that the leader is a bottleneck and a single point of failure (though leader election via consensus can handle failover).</p>
+<h4 id="quorum-reads-and-writes">Quorum Reads and Writes<a hidden class="anchor" aria-hidden="true" href="#quorum-reads-and-writes">#</a></h4>
+<p>Systems like Dynamo-style databases use quorum reads and writes (e.g., read from R nodes, write to W nodes, where R + W &gt; N). However, <strong>quorum reads/writes alone are not sufficient for linearizability</strong> in all cases. Additional coordination (like read-repair or consensus) is needed to close the gaps.</p>
+<h3 id="cap-theorem">CAP Theorem<a hidden class="anchor" aria-hidden="true" href="#cap-theorem">#</a></h3>
+<p>The CAP theorem states that a distributed system can provide at most two of three guarantees:</p>
+<ul>
+<li><strong>Consistency</strong> (linearizability specifically)</li>
+<li><strong>Availability</strong> (every request gets a response)</li>
+<li><strong>Partition tolerance</strong> (the system keeps working despite network splits)</li>
+</ul>
+<p>Since network partitions are unavoidable in practice, the real choice is between <strong>CP</strong> (linearizable but may become unavailable during partitions) and <strong>AP</strong> (always available but may return stale data during partitions).</p>
+<h3 id="linearizability-vs-serializability">Linearizability vs Serializability<a hidden class="anchor" aria-hidden="true" href="#linearizability-vs-serializability">#</a></h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Linearizability</th>
+<th>Serializability</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Scope</strong></td>
+<td>Single operations on single objects</td>
+<td>Transactions across multiple objects</td>
+</tr>
+<tr>
+<td><strong>Ordering</strong></td>
+<td>Must respect real-time order</td>
+<td>Any serial order is acceptable</td>
+</tr>
+<tr>
+<td><strong>Guarantee</strong></td>
+<td>Recency - reads see the latest write</td>
+<td>Isolation - transactions don&rsquo;t interfere</td>
+</tr>
+<tr>
+<td><strong>Where it matters</strong></td>
+<td>Distributed replication</td>
+<td>Database transaction processing</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Strict serializability</strong> (also called &ldquo;one-copy serializability&rdquo;) provides both: transactions that are serializable and whose order matches real time. Systems like Spanner and CockroachDB aim for this.</p>
+<h3 id="tradeoffs">Tradeoffs<a hidden class="anchor" aria-hidden="true" href="#tradeoffs">#</a></h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Linearizable Systems</th>
+<th>Eventually Consistent Systems</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Correctness</strong></td>
+<td>Strong - behaves as single copy</td>
+<td>Weak - stale reads possible</td>
+</tr>
+<tr>
+<td><strong>Latency</strong></td>
+<td>Higher (coordination overhead)</td>
+<td>Lower (no waiting for agreement)</td>
+</tr>
+<tr>
+<td><strong>Availability</strong></td>
+<td>Reduced during partitions (CP)</td>
+<td>Maintained during partitions (AP)</td>
+</tr>
+<tr>
+<td><strong>Throughput</strong></td>
+<td>Lower (consensus bottleneck)</td>
+<td>Higher (no coordination)</td>
+</tr>
+<tr>
+<td><strong>Use cases</strong></td>
+<td>Leader election, distributed locks, financial systems</td>
+<td>Caching, social feeds, DNS</td>
+</tr>
+</tbody>
+</table>
+<p>Linearizability is the strongest single-object consistency model but it comes at a cost. Many systems choose weaker models (causal consistency, eventual consistency) when the application can tolerate them, and only use linearizability where correctness demands it.</p>
+<p>P.S. If there are any mistakes please let me know, I&rsquo;m by no means an expert.</p>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="https://low-level-luke.me/tags/braindump/">braindump</a></li>
+      <li><a href="https://low-level-luke.me/tags/databases/">databases</a></li>
+      <li><a href="https://low-level-luke.me/tags/distributed-systems/">distributed-systems</a></li>
+      <li><a href="https://low-level-luke.me/tags/consistency/">consistency</a></li>
+    </ul><div class="social-icons" align="center">
+    <a href="mailto:luke61996@gmail.com" target="_blank" rel="noopener noreferrer me"
+        title="Email">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 21" fill="none" stroke="currentColor" stroke-width="2"
+    stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+    <polyline points="22,6 12,13 2,6"></polyline>
+</svg>
+    </a>
+    <a href="https://x.com/MrDust0" target="_blank" rel="noopener noreferrer me"
+        title="X">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+    <path
+        d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z">
+    </path>
+</svg>
+    </a>
+    <a href="https://discord.com/users/323409278733910017" target="_blank" rel="noopener noreferrer me"
+        title="Discord">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 127.14 96.36" fill="currentColor" stroke="none" stroke-width="2"
+    stroke-linecap="round" stroke-linejoin="round">
+    <path
+        d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z" />
+</svg>
+    </a>
+</div>
+
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+        <span>&copy; 2026 <a href="https://low-level-luke.me/">low-level-luke</a></span> · 
+
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://github.com/adityatelange/hugo-PaperMod/" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu');
+    if (menu) {
+        
+        const scrollPosition = localStorage.getItem("menu-scroll-position");
+        if (scrollPosition) {
+            menu.scrollLeft = parseInt(scrollPosition, 10);
+        }
+        
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        const html = document.querySelector("html");
+        if (html.dataset.theme === "dark") {
+            html.dataset.theme = 'light';
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            html.dataset.theme = 'dark';
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerHTML = 'copy';
+
+        function copyingDone() {
+            copybutton.innerHTML = 'copied!';
+            setTimeout(() => {
+                copybutton.innerHTML = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

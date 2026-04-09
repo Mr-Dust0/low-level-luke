@@ -6,8 +6,15 @@
     <description>Recent content on low-level-luke</description>
     <generator>Hugo</generator>
     <language>en-gb</language>
-    <lastBuildDate>Wed, 08 Apr 2026 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Thu, 09 Apr 2026 00:00:00 +0000</lastBuildDate>
     <atom:link href="https://low-level-luke.me/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Linearizability</title>
+      <link>https://low-level-luke.me/braindumps/linearizability/</link>
+      <pubDate>Thu, 09 Apr 2026 00:00:00 +0000</pubDate>
+      <guid>https://low-level-luke.me/braindumps/linearizability/</guid>
+      <description>What linearizability means in distributed systems, and what I got wrong along the way</description>
+    </item>
     <item>
       <title>SQLite Query Execution</title>
       <link>https://low-level-luke.me/braindumps/sqlite/</link>

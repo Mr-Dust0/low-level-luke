@@ -3,24 +3,33 @@
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://low-level-luke.me/tags/braindump/</loc>
-    <lastmod>2026-04-08T00:00:00+00:00</lastmod>
+    <lastmod>2026-04-09T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://low-level-luke.me/braindumps/</loc>
-    <lastmod>2026-04-08T00:00:00+00:00</lastmod>
+    <lastmod>2026-04-09T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://low-level-luke.me/tags/consistency/</loc>
+    <lastmod>2026-04-09T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://low-level-luke.me/tags/databases/</loc>
-    <lastmod>2026-04-08T00:00:00+00:00</lastmod>
+    <lastmod>2026-04-09T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://low-level-luke.me/tags/distributed-systems/</loc>
+    <lastmod>2026-04-09T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://low-level-luke.me/braindumps/linearizability/</loc>
+    <lastmod>2026-04-09T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://low-level-luke.me/</loc>
-    <lastmod>2026-04-08T00:00:00+00:00</lastmod>
+    <lastmod>2026-04-09T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://low-level-luke.me/tags/</loc>
+    <lastmod>2026-04-09T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://low-level-luke.me/tags/sqlite/</loc>
     <lastmod>2026-04-08T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://low-level-luke.me/braindumps/sqlite/</loc>
-    <lastmod>2026-04-08T00:00:00+00:00</lastmod>
-  </url><url>
-    <loc>https://low-level-luke.me/tags/</loc>
     <lastmod>2026-04-08T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://low-level-luke.me/tags/data-structures/</loc>
