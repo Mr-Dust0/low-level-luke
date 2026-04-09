@@ -12,23 +12,23 @@ draft: false
 
 ## My Notes
 
-Linaziabity is an contrait on databases where all operations are atomtic so the data so can only be saw in correct state and no stale data can be saw. So the order of the writes needs to be correct and all reads most get the correct data can't get any stale reads. This is pretty easy to do with one db but as you get distributed databases it gets harder since you have to make sure that the data is replicated to all the other databaes before appecting the write or read and that the data is most up to date. You have PAC (partions, availablity, consitenty ) and you can also have 2 an bit like cap
+Linaziabity is an contrait on databases where all operations appear to take place at an single point of time so the data so can only be saw after that point of time and no data that was older than piece older than that piece of data can't be read also the data needs to be oredered in realtime and not some and not the invdiauls database time order like is done in serializability. This is pretty easy to do with one db is one version of the data so will get the most recent reads and wirtes as there's only one copy  but as you get distributed databases it gets harder since you have to make sure that the data is replicated to all the majority of the other databases or the correct term an quorum of them need to appect the read or write.
 
 ---
 
 ## What I Got Wrong
 
-- **I described linearizability as "all operations are atomic so data can only be seen in a correct state."** That's closer to a description of general consistency or atomicity. Linearizability is specifically about each operation appearing to take effect instantaneously at some single point between its invocation and its response. The critical part is the real-time ordering guarantee: if operation A completes before operation B starts, then A must appear before B. This is what makes it stronger than other consistency models.
+- **I said "operations appear to take place at a single point of time" which is right, but I missed the key detail.** That single point must fall between the operation's invocation and its response. This is what makes linearizability testable - you can check whether there exists a valid ordering where every operation's "effective time" sits within the window of its actual wall-clock duration.
 
-- **I didn't distinguish linearizability from serializability.** These are different guarantees. Linearizability is about individual operations on individual objects respecting real-time order. Serializability is about transactions appearing to execute in some serial order (but that order doesn't have to match real time). "Strict serializability" combines both.
+- **I said serializability uses "individual database time order."** That's not quite right. Serializability doesn't use any time order at all - it just requires that the result is equivalent to *some* serial ordering of transactions. That order can be completely different from real time. The key difference is scope too: linearizability is about single operations on single objects, serializability is about transactions across multiple objects. I had the right instinct that they're different, but the characterisation of serializability was off.
 
-- **I said "PAC (partitions, availability, consistency)."** It's the CAP theorem, not PAC. And linearizability is specifically the "C" in CAP - it's the formal consistency model that CAP refers to.
+- **I said "replicated to the majority of the other databases or the correct term a quorum."** Getting the quorum concept is right, but replicating data to a quorum alone isn't enough for linearizability. Dynamo-style quorum reads/writes (R + W > N) can still produce non-linearizable results due to race conditions. You need consensus protocols (Raft, Paxos) that agree on an *ordering* of operations, not just that a majority has seen the data.
 
-- **I said you need to "replicate to all the other databases before accepting."** This describes synchronous replication to every node, which is one approach but not the only one. Consensus protocols like Raft and Paxos only need a majority (quorum) of nodes to agree, not all of them. A node can be down and the system still makes progress.
+- **I didn't mention the CAP theorem.** Linearizability is specifically the "C" in CAP. The CAP theorem says a distributed system can't simultaneously guarantee Consistency (linearizability), Availability, and Partition tolerance. Since partitions are unavoidable, the real choice is CP (linearizable but may become unavailable during partitions) vs AP (always available but may return stale data).
 
-- **I said "pretty easy to do with one db."** This is true but worth being precise about why: on a single node there's one copy of the data and a single thread of execution (or locks), so operations are naturally ordered. The entire challenge of linearizability comes from replication - multiple copies of data that need to appear as one.
+- **I didn't mention how linearizability is actually achieved.** The standard approaches are consensus protocols (Paxos, Raft, ZAB) that get a quorum to agree on an ordering of operations, or leader-based replication where all reads and writes go through a single leader that serialises them.
 
-- **I didn't mention how linearizability is actually achieved in distributed systems.** The standard approach is consensus protocols (Paxos, Raft, ZAB) that get a quorum of nodes to agree on an ordering of operations. Leader-based replication can also work if reads go through the leader.
+- **I didn't mention the cost.** Linearizability requires coordination between nodes on every operation, which adds latency and reduces throughput. This is why many systems choose weaker models (eventual consistency, causal consistency) when the application can tolerate them.
 
 ---
 
