@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>consensus on low-level-luke</title>
+    <link>https://low-level-luke.me/tags/consensus/</link>
+    <description>Recent content in consensus on low-level-luke</description>
+    <generator>Hugo</generator>
+    <language>en-gb</language>
+    <lastBuildDate>Sat, 11 Apr 2026 00:00:00 +0000</lastBuildDate>
+    <atom:link href="https://low-level-luke.me/tags/consensus/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Paxos</title>
+      <link>https://low-level-luke.me/braindumps/paxos/</link>
+      <pubDate>Sat, 11 Apr 2026 00:00:00 +0000</pubDate>
+      <guid>https://low-level-luke.me/braindumps/paxos/</guid>
+      <description>How Paxos coordinates state across machines, and what I got wrong along the way</description>
+    </item>
+  </channel>
+</rss>

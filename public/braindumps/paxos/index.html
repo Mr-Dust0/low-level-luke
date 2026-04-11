@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto" data-theme="dark">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>Paxos | low-level-luke</title>
+<meta name="keywords" content="braindump, distributed-systems, consensus">
+<meta name="description" content="How Paxos coordinates state across machines, and what I got wrong along the way">
+<meta name="author" content="">
+<link rel="canonical" href="https://low-level-luke.me/braindumps/paxos/">
+<link crossorigin="anonymous" href="/assets/css/stylesheet.da3211e5ef867bf2b75fd5a6515cfed7195c011e8ab735694e203810a827097b.css" integrity="sha256-2jIR5e&#43;Ge/K3X9WmUVz&#43;1xlcAR6KtzVpTiA4EKgnCXs=" rel="preload stylesheet" as="style">
+<link rel="icon" href="https://low-level-luke.me/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://low-level-luke.me/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://low-level-luke.me/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://low-level-luke.me/apple-touch-icon.png">
+<link rel="mask-icon" href="https://low-level-luke.me/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+</noscript>
+<script>
+    if (localStorage.getItem("pref-theme") === "light") {
+        document.querySelector("html").dataset.theme = 'light';
+    }
+
+</script><meta property="og:url" content="https://low-level-luke.me/braindumps/paxos/">
+  <meta property="og:site_name" content="low-level-luke">
+  <meta property="og:title" content="Paxos">
+  <meta property="og:description" content="How Paxos coordinates state across machines, and what I got wrong along the way">
+  <meta property="og:locale" content="en_gb">
+  <meta property="og:type" content="article">
+    <meta property="article:published_time" content="2026-04-11T00:00:00Z">
+  <meta property="article:tag" content="braindump">
+  <meta property="article:tag" content="distributed-systems">
+  <meta property="article:tag" content="consensus">
+
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Paxos">
+  <meta name="twitter:description" content="How Paxos coordinates state across machines, and what I got wrong along the way">
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Braindumps",
+      "item": "https://low-level-luke.me/braindumps/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "Paxos",
+      "item": "https://low-level-luke.me/braindumps/paxos/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Paxos",
+  "name": "Paxos",
+  "description": "How Paxos coordinates state across machines, and what I got wrong along the way",
+  "keywords": [
+    "braindump", "distributed-systems", "consensus"
+  ],
+  "articleBody": "Trying to remember a topic from memory with no notes, then getting AI to correct it. Basically using active recall to help me remember things better and forcing myself to post it so I do it more often.\n My Notes Paxos is an way to cordinate state between multiple machines and there are different types of paxos that can run the basic paxos gets an leader to be elected through concenus and there are multiple algrothims that can be used here to pick an leader. Once an leader is elected the leader has to boardcast the state changes to all the approvers which approve of the transactions and once an the set amount of appectors appect the change the change is hten commited and the leaders sends an commit to all teh appectors. You can change teh appectors that you need like using flexible paxos but also want one node to interspect when either doing an read or an write so you know that you have the moost up to date value somewhere in the code. Also you can have listeners which just listen to the changes and don’t vote which is useful for backup and getting other nodes up to speed. That are mulitple versions of paxos like fast, epaxos, flexible and somemore that i missing\n What I Got Wrong   I said “basic Paxos gets a leader elected through consensus.\" This mixes things up. Basic Paxos (also called Single-Decree Paxos) doesn’t actually require a leader at all - it’s a protocol for a group of nodes to agree on a single value. Any node can propose. The thing people usually call “Paxos with a leader” is Multi-Paxos, which is an optimisation where a stable proposer is elected so that subsequent values can skip the first phase of the protocol. Leader election in Multi-Paxos is actually done using Paxos itself, not with a separate algorithm.\n  I said “the leader broadcasts state changes to approvers which approve the transactions.\" The proper terms are Proposers, Acceptors, and Learners. And the protocol is two phases, not a single broadcast. In Phase 1 the proposer sends a Prepare with a proposal number and acceptors respond with a Promise. Only in Phase 2 does it send the actual value in an Accept message. The point of Phase 1 isn’t to get approval for a value - it’s to lock out older proposers and discover any previously accepted value that must be preserved.\n  I said “a set amount of acceptors accept the change and it’s committed.\" Roughly right, but the specific amount matters: it’s a majority quorum. The deep reason is quorum intersection - any two majorities must share at least one acceptor. That single overlapping acceptor is what prevents two different values from being chosen, because it’ll remember what was accepted before and force the new proposer to re-propose that value.\n  I said “you want one node to intersect when doing a read or a write.\" This was the right intuition articulated badly. The “one node in common” property is literally the safety argument for Paxos - but it’s about overlap between the Phase 1 quorum and any previous Phase 2 quorum, not between read and write operations. Classic Paxos doesn’t even have a built-in read operation; you typically run a no-op through consensus to get a linearizable read.\n  I said “you can change the acceptors you need like using flexible Paxos.\" This is close. Flexible Paxos is a real result (Howard, Malkhi, Spiegelman, 2016) but the key insight is more specific: the Phase 1 quorum (Q1) and Phase 2 quorum (Q2) don’t both need to be majorities. They just need to intersect (|Q1| + |Q2|  N). So you can shrink Q2 (making the common case faster) at the cost of a bigger Q1 (making leader election slower). It’s a tradeoff, not just “pick your acceptors.”\n  I said “listeners just listen to the changes and don’t vote.\" The term is Learners. Everything else is right - they observe the decided values but don’t participate in the Prepare/Accept voting. They’re how state propagates to replicas that don’t need to be in the decision path, and they’re cheap to add because they don’t affect quorum sizes.\n  I didn’t mention what Paxos actually guarantees. Paxos guarantees safety (at most one value is ever chosen, and once chosen nothing can un-choose it) but does not guarantee liveness. Two proposers with rising proposal numbers can livelock each other forever in a classic “duelling proposers” scenario. This is why Multi-Paxos uses a stable leader - not for correctness, but to avoid the livelock.\n  I didn’t mention FLP impossibility. The Fischer-Lynch-Paterson result says deterministic consensus is impossible in a fully asynchronous system with even one faulty node. Paxos works around this by sacrificing liveness during bad conditions (partitions, duelling proposers) while always preserving safety. This is the real theoretical context for why Paxos is structured the way it is.\n  I mentioned variants but didn’t explain them. Worth naming properly:\n Multi-Paxos: amortises Phase 1 by keeping a stable leader. Fast Paxos: clients send directly to acceptors, saving a round trip, but the fast-path quorum is larger (roughly 3N/4). EPaxos (Egalitarian Paxos): no leader at all; commutative commands commit in one round trip, conflicting ones take two. Flexible Paxos: decouples Phase 1 and Phase 2 quorum sizes. Cheap Paxos: uses auxiliary acceptors only when primary ones fail.     How Paxos Actually Works Paxos is a family of consensus protocols invented by Leslie Lamport. It lets a group of unreliable nodes agree on a single value, and it’s the theoretical foundation for most modern replicated state machines (Chubby, Spanner, and many others use Paxos or descendants of it).\nThe Three Roles Every node in Paxos plays one or more of these roles:\n Proposer: proposes values to be agreed on. Acceptor: votes on proposed values. A majority of acceptors forms a quorum. Learner: learns the chosen value once consensus is reached. Doesn’t vote.  A single physical node typically plays all three roles.\nBasic Paxos (Single-Decree) Basic Paxos agrees on one value. The protocol has two phases:\nPhase 1: Prepare / Promise  A proposer picks a proposal number n (higher than any it has used before) and sends Prepare(n) to a majority of acceptors. Each acceptor that receives Prepare(n):  If n is higher than any proposal number it has promised, it responds with a Promise(n) saying “I won’t accept any proposal numbered less than n.” If it has already accepted a value in a previous proposal, it includes that value and its proposal number in the promise.   If the proposer gets promises from a majority, it moves to Phase 2.  Phase 2: Accept / Accepted  The proposer picks a value to propose. If any acceptor reported a previously accepted value, the proposer must use the value from the highest-numbered such report. Otherwise, it’s free to choose its own value. It sends Accept(n, v) to the acceptors. Each acceptor accepts the proposal unless it has already promised a higher proposal number in the meantime. When a majority accepts, the value is chosen. Learners are then notified.  Why It Works: Quorum Intersection The safety of Paxos hinges on one fact: any two majorities of a set share at least one member.\nImagine a proposer tries to propose a new value. Its Phase 1 must hit a majority. Any previously chosen value was accepted by a different majority. Those two majorities must overlap in at least one acceptor - and that acceptor will report the old accepted value in its Promise. The rule that the new proposer must reuse the highest previously-accepted value then forces consensus to be preserved.\nThis is why you can’t get two different values chosen, even if proposers crash, messages are lost, or multiple proposers run simultaneously.\nSafety vs Liveness Paxos guarantees safety: once a value is chosen, it stays chosen and no other value can be chosen.\nPaxos does not guarantee liveness. Two proposers that keep incrementing proposal numbers can starve each other forever - each one’s Phase 1 invalidates the other’s Phase 2. This is the “duelling proposers” problem.\nThe FLP impossibility result proves no deterministic consensus algorithm can guarantee both safety and liveness in a fully asynchronous system where even one node can fail. Paxos takes the pragmatic approach of always being safe and being live “usually” - in practice, with a stable leader and reasonable timeouts, it makes progress.\nMulti-Paxos Basic Paxos is expensive: two round trips per value. Real systems need to agree on a sequence of values (a replicated log), and running Basic Paxos repeatedly is wasteful.\nMulti-Paxos fixes this with a distinguished proposer (the “leader”):\n Elect a leader once using Paxos itself. The leader runs Phase 1 once, for a whole range of log slots. For each subsequent value, it only needs to run Phase 2.  This collapses each agreement to a single round trip in the common case. It’s how most real Paxos deployments work.\nIf the leader fails, someone else runs Phase 1 with a higher proposal number and becomes the new leader. The safety property means no committed values are ever lost during the transition.\nFlexible Paxos A beautiful observation: the quorum intersection property only requires that Phase 1’s quorum and Phase 2’s quorum intersect. They don’t both need to be majorities.\nFormally, if Q1 is the Phase 1 quorum size and Q2 is the Phase 2 quorum size, you just need:\n|Q1| + |Q2|  N With N=5 acceptors, you could pick |Q1|=4 and |Q2|=2. Phase 2 (the hot path) is now faster at the cost of slower leader election. This is great for workloads where leaders are stable and writes happen constantly.\nFast Paxos Fast Paxos shaves one round trip in the common case by letting clients send values directly to acceptors. The catch: the quorum for Fast Paxos is larger - roughly 3N/4 instead of N/2 + 1 - and collisions require falling back to Classic Paxos.\nEPaxos (Egalitarian Paxos) EPaxos removes the leader entirely. Every replica can propose commands. Commands that don’t conflict (i.e. commute) can commit in one round trip; conflicting ones need two. This is great for geo-replication because clients can talk to their nearest replica instead of a single global leader.\nPaxos vs Raft Raft is usually described as “Paxos but understandable.” It’s essentially Multi-Paxos with stronger structural constraints:\n Raft enforces a strong leader that’s the only source of log entries. Raft requires leaders to have the most up-to-date log, simplifying log repair. Raft separates leader election, log replication, and safety into clearly named sub-problems.  Functionally Raft and Multi-Paxos solve the same problem with similar guarantees. Raft’s main contribution is pedagogical clarity, which matters a lot when you’re trying to implement this stuff correctly.\nTradeoffs     Basic Paxos Multi-Paxos Fast Paxos EPaxos Flexible Paxos     Leader None Stable Stable None Stable   Round trips (common) 2 1 1 (direct) 1 (non-conflicting) 1   Quorum size Majority Majority ~3N/4 Majority Configurable   Livelock risk Yes Rare Yes on collisions Rare Rare   Complexity Low Medium High Very high Low   Best for Teaching Replicated logs Low-conflict writes Geo-distribution Tunable workloads    Paxos is one of those algorithms where the basic idea is elegant but every practical deployment uses a variant. The core insight - that quorum intersection plus a two-phase protocol gives you agreement under arbitrary failures - is what the whole field builds on.\nP.S. If there are any mistakes please let me know, I’m by no means an expert.\n",
+  "wordCount" : "1903",
+  "inLanguage": "en",
+  "datePublished": "2026-04-11T00:00:00Z",
+  "dateModified": "2026-04-11T00:00:00Z",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://low-level-luke.me/braindumps/paxos/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "low-level-luke",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://low-level-luke.me/favicon.ico"
+    }
+  }
+}
+</script>
+</head>
+<body id="top">
+    <header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="https://low-level-luke.me/" accesskey="h" title="low-level-luke (Alt + H)">low-level-luke</a>
+            <div class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)" aria-label="Toggle theme">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="18" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="18" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="https://low-level-luke.me/" title="Home">
+                    <span>Home</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://low-level-luke.me/tags/" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://low-level-luke.me/braindumps/" title="Braindumps">
+                    <span>Braindumps</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://low-level-luke.me/archives/" title="Archive">
+                    <span>Archive</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    <div class="breadcrumbs"><a href="https://low-level-luke.me/">Home</a>&nbsp;»&nbsp;<a href="https://low-level-luke.me/braindumps/">Braindumps</a></div>
+    <h1 class="post-title entry-hint-parent">
+      Paxos
+    </h1>
+    <div class="post-meta"><span title='2026-04-11 00:00:00 +0000 UTC'>April 11, 2026</span>&nbsp;·&nbsp;<span>9 min</span>
+
+</div>
+  </header> <div class="toc">
+    <details >
+        <summary accesskey="c" title="(Alt + C)">
+            <span class="details">Table of Contents</span>
+        </summary>
+
+        <div class="inner"><ul>
+                <li>
+                    <a href="#my-notes" aria-label="My Notes">My Notes</a></li>
+                <li>
+                    <a href="#what-i-got-wrong" aria-label="What I Got Wrong">What I Got Wrong</a></li>
+                <li>
+                    <a href="#how-paxos-actually-works" aria-label="How Paxos Actually Works">How Paxos Actually Works</a><ul>
+                        
+                <li>
+                    <a href="#the-three-roles" aria-label="The Three Roles">The Three Roles</a></li>
+                <li>
+                    <a href="#basic-paxos-single-decree" aria-label="Basic Paxos (Single-Decree)">Basic Paxos (Single-Decree)</a><ul>
+                        
+                <li>
+                    <a href="#phase-1-prepare--promise" aria-label="Phase 1: Prepare / Promise">Phase 1: Prepare / Promise</a></li>
+                <li>
+                    <a href="#phase-2-accept--accepted" aria-label="Phase 2: Accept / Accepted">Phase 2: Accept / Accepted</a></li></ul>
+                </li>
+                <li>
+                    <a href="#why-it-works-quorum-intersection" aria-label="Why It Works: Quorum Intersection">Why It Works: Quorum Intersection</a></li>
+                <li>
+                    <a href="#safety-vs-liveness" aria-label="Safety vs Liveness">Safety vs Liveness</a></li>
+                <li>
+                    <a href="#multi-paxos" aria-label="Multi-Paxos">Multi-Paxos</a></li>
+                <li>
+                    <a href="#flexible-paxos" aria-label="Flexible Paxos">Flexible Paxos</a></li>
+                <li>
+                    <a href="#fast-paxos" aria-label="Fast Paxos">Fast Paxos</a></li>
+                <li>
+                    <a href="#epaxos-egalitarian-paxos" aria-label="EPaxos (Egalitarian Paxos)">EPaxos (Egalitarian Paxos)</a></li>
+                <li>
+                    <a href="#paxos-vs-raft" aria-label="Paxos vs Raft">Paxos vs Raft</a></li>
+                <li>
+                    <a href="#tradeoffs" aria-label="Tradeoffs">Tradeoffs</a>
+                </li>
+            </ul>
+            </li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+  <div class="post-content"><p><em>Trying to remember a topic from memory with no notes, then getting AI to correct it. Basically using active recall to help me remember things better and forcing myself to post it so I do it more often.</em></p>
+<hr>
+<h2 id="my-notes">My Notes<a hidden class="anchor" aria-hidden="true" href="#my-notes">#</a></h2>
+<p>Paxos is an way to cordinate state between multiple machines and there are different types of paxos that can run the basic paxos gets an leader to be elected through concenus and there are multiple algrothims that can be used here to pick an leader. Once an leader is elected the leader has to boardcast the state changes to all the approvers which approve of the transactions and once an the set amount of appectors appect the change the change is hten commited and the leaders sends an commit to all teh appectors. You can change teh appectors that you need like using flexible paxos but also want one node to interspect when either doing an read or an write so you know that you have the moost up to date value somewhere in the code. Also you can have listeners which just listen to the changes and don&rsquo;t vote which is useful for backup and getting other nodes up to speed. That are mulitple versions of paxos like fast, epaxos, flexible and somemore that i missing</p>
+<hr>
+<h2 id="what-i-got-wrong">What I Got Wrong<a hidden class="anchor" aria-hidden="true" href="#what-i-got-wrong">#</a></h2>
+<ul>
+<li>
+<p><strong>I said &ldquo;basic Paxos gets a leader elected through consensus.&quot;</strong> This mixes things up. Basic Paxos (also called Single-Decree Paxos) doesn&rsquo;t actually require a leader at all - it&rsquo;s a protocol for a group of nodes to agree on a single value. Any node can propose. The thing people usually call &ldquo;Paxos with a leader&rdquo; is <strong>Multi-Paxos</strong>, which is an optimisation where a stable proposer is elected so that subsequent values can skip the first phase of the protocol. Leader election in Multi-Paxos is actually done <em>using</em> Paxos itself, not with a separate algorithm.</p>
+</li>
+<li>
+<p><strong>I said &ldquo;the leader broadcasts state changes to approvers which approve the transactions.&quot;</strong> The proper terms are <strong>Proposers</strong>, <strong>Acceptors</strong>, and <strong>Learners</strong>. And the protocol is two phases, not a single broadcast. In Phase 1 the proposer sends a Prepare with a proposal number and acceptors respond with a Promise. Only in Phase 2 does it send the actual value in an Accept message. The point of Phase 1 isn&rsquo;t to get approval for a value - it&rsquo;s to lock out older proposers and discover any previously accepted value that must be preserved.</p>
+</li>
+<li>
+<p><strong>I said &ldquo;a set amount of acceptors accept the change and it&rsquo;s committed.&quot;</strong> Roughly right, but the specific amount matters: it&rsquo;s a <strong>majority quorum</strong>. The deep reason is <strong>quorum intersection</strong> - any two majorities must share at least one acceptor. That single overlapping acceptor is what prevents two different values from being chosen, because it&rsquo;ll remember what was accepted before and force the new proposer to re-propose that value.</p>
+</li>
+<li>
+<p><strong>I said &ldquo;you want one node to intersect when doing a read or a write.&quot;</strong> This was the right intuition articulated badly. The &ldquo;one node in common&rdquo; property is literally the safety argument for Paxos - but it&rsquo;s about overlap between the <strong>Phase 1 quorum</strong> and any previous <strong>Phase 2 quorum</strong>, not between read and write operations. Classic Paxos doesn&rsquo;t even have a built-in read operation; you typically run a no-op through consensus to get a linearizable read.</p>
+</li>
+<li>
+<p><strong>I said &ldquo;you can change the acceptors you need like using flexible Paxos.&quot;</strong> This is close. <strong>Flexible Paxos</strong> is a real result (Howard, Malkhi, Spiegelman, 2016) but the key insight is more specific: the Phase 1 quorum (Q1) and Phase 2 quorum (Q2) don&rsquo;t both need to be majorities. They just need to intersect (|Q1| + |Q2| &gt; N). So you can shrink Q2 (making the common case faster) at the cost of a bigger Q1 (making leader election slower). It&rsquo;s a tradeoff, not just &ldquo;pick your acceptors.&rdquo;</p>
+</li>
+<li>
+<p><strong>I said &ldquo;listeners just listen to the changes and don&rsquo;t vote.&quot;</strong> The term is <strong>Learners</strong>. Everything else is right - they observe the decided values but don&rsquo;t participate in the Prepare/Accept voting. They&rsquo;re how state propagates to replicas that don&rsquo;t need to be in the decision path, and they&rsquo;re cheap to add because they don&rsquo;t affect quorum sizes.</p>
+</li>
+<li>
+<p><strong>I didn&rsquo;t mention what Paxos actually guarantees.</strong> Paxos guarantees <strong>safety</strong> (at most one value is ever chosen, and once chosen nothing can un-choose it) but does <strong>not</strong> guarantee <strong>liveness</strong>. Two proposers with rising proposal numbers can livelock each other forever in a classic &ldquo;duelling proposers&rdquo; scenario. This is why Multi-Paxos uses a stable leader - not for correctness, but to avoid the livelock.</p>
+</li>
+<li>
+<p><strong>I didn&rsquo;t mention FLP impossibility.</strong> The Fischer-Lynch-Paterson result says deterministic consensus is impossible in a fully asynchronous system with even one faulty node. Paxos works around this by sacrificing liveness during bad conditions (partitions, duelling proposers) while always preserving safety. This is the real theoretical context for why Paxos is structured the way it is.</p>
+</li>
+<li>
+<p><strong>I mentioned variants but didn&rsquo;t explain them.</strong> Worth naming properly:</p>
+<ul>
+<li><strong>Multi-Paxos</strong>: amortises Phase 1 by keeping a stable leader.</li>
+<li><strong>Fast Paxos</strong>: clients send directly to acceptors, saving a round trip, but the fast-path quorum is larger (roughly 3N/4).</li>
+<li><strong>EPaxos (Egalitarian Paxos)</strong>: no leader at all; commutative commands commit in one round trip, conflicting ones take two.</li>
+<li><strong>Flexible Paxos</strong>: decouples Phase 1 and Phase 2 quorum sizes.</li>
+<li><strong>Cheap Paxos</strong>: uses auxiliary acceptors only when primary ones fail.</li>
+</ul>
+</li>
+</ul>
+<hr>
+<h2 id="how-paxos-actually-works">How Paxos Actually Works<a hidden class="anchor" aria-hidden="true" href="#how-paxos-actually-works">#</a></h2>
+<p>Paxos is a family of consensus protocols invented by Leslie Lamport. It lets a group of unreliable nodes agree on a single value, and it&rsquo;s the theoretical foundation for most modern replicated state machines (Chubby, Spanner, and many others use Paxos or descendants of it).</p>
+<h3 id="the-three-roles">The Three Roles<a hidden class="anchor" aria-hidden="true" href="#the-three-roles">#</a></h3>
+<p>Every node in Paxos plays one or more of these roles:</p>
+<ul>
+<li><strong>Proposer</strong>: proposes values to be agreed on.</li>
+<li><strong>Acceptor</strong>: votes on proposed values. A majority of acceptors forms a quorum.</li>
+<li><strong>Learner</strong>: learns the chosen value once consensus is reached. Doesn&rsquo;t vote.</li>
+</ul>
+<p>A single physical node typically plays all three roles.</p>
+<h3 id="basic-paxos-single-decree">Basic Paxos (Single-Decree)<a hidden class="anchor" aria-hidden="true" href="#basic-paxos-single-decree">#</a></h3>
+<p>Basic Paxos agrees on <strong>one</strong> value. The protocol has two phases:</p>
+<h4 id="phase-1-prepare--promise">Phase 1: Prepare / Promise<a hidden class="anchor" aria-hidden="true" href="#phase-1-prepare--promise">#</a></h4>
+<ol>
+<li>A proposer picks a proposal number <code>n</code> (higher than any it has used before) and sends <code>Prepare(n)</code> to a majority of acceptors.</li>
+<li>Each acceptor that receives <code>Prepare(n)</code>:
+<ul>
+<li>If <code>n</code> is higher than any proposal number it has promised, it responds with a <code>Promise(n)</code> saying &ldquo;I won&rsquo;t accept any proposal numbered less than <code>n</code>.&rdquo;</li>
+<li>If it has already accepted a value in a previous proposal, it includes that value and its proposal number in the promise.</li>
+</ul>
+</li>
+<li>If the proposer gets promises from a majority, it moves to Phase 2.</li>
+</ol>
+<h4 id="phase-2-accept--accepted">Phase 2: Accept / Accepted<a hidden class="anchor" aria-hidden="true" href="#phase-2-accept--accepted">#</a></h4>
+<ol>
+<li>The proposer picks a value to propose. <strong>If any acceptor reported a previously accepted value</strong>, the proposer must use the value from the highest-numbered such report. Otherwise, it&rsquo;s free to choose its own value.</li>
+<li>It sends <code>Accept(n, v)</code> to the acceptors.</li>
+<li>Each acceptor accepts the proposal unless it has already promised a higher proposal number in the meantime.</li>
+<li>When a majority accepts, the value is <strong>chosen</strong>. Learners are then notified.</li>
+</ol>
+<h3 id="why-it-works-quorum-intersection">Why It Works: Quorum Intersection<a hidden class="anchor" aria-hidden="true" href="#why-it-works-quorum-intersection">#</a></h3>
+<p>The safety of Paxos hinges on one fact: <strong>any two majorities of a set share at least one member</strong>.</p>
+<p>Imagine a proposer tries to propose a new value. Its Phase 1 must hit a majority. Any previously chosen value was accepted by a different majority. Those two majorities must overlap in at least one acceptor - and that acceptor will report the old accepted value in its Promise. The rule that the new proposer must reuse the highest previously-accepted value then forces consensus to be preserved.</p>
+<p>This is why you can&rsquo;t get two different values chosen, even if proposers crash, messages are lost, or multiple proposers run simultaneously.</p>
+<h3 id="safety-vs-liveness">Safety vs Liveness<a hidden class="anchor" aria-hidden="true" href="#safety-vs-liveness">#</a></h3>
+<p>Paxos guarantees <strong>safety</strong>: once a value is chosen, it stays chosen and no other value can be chosen.</p>
+<p>Paxos does <strong>not</strong> guarantee <strong>liveness</strong>. Two proposers that keep incrementing proposal numbers can starve each other forever - each one&rsquo;s Phase 1 invalidates the other&rsquo;s Phase 2. This is the &ldquo;duelling proposers&rdquo; problem.</p>
+<p>The <strong>FLP impossibility</strong> result proves no deterministic consensus algorithm can guarantee both safety and liveness in a fully asynchronous system where even one node can fail. Paxos takes the pragmatic approach of always being safe and being live &ldquo;usually&rdquo; - in practice, with a stable leader and reasonable timeouts, it makes progress.</p>
+<h3 id="multi-paxos">Multi-Paxos<a hidden class="anchor" aria-hidden="true" href="#multi-paxos">#</a></h3>
+<p>Basic Paxos is expensive: two round trips per value. Real systems need to agree on a sequence of values (a replicated log), and running Basic Paxos repeatedly is wasteful.</p>
+<p><strong>Multi-Paxos</strong> fixes this with a distinguished proposer (the &ldquo;leader&rdquo;):</p>
+<ol>
+<li>Elect a leader once using Paxos itself.</li>
+<li>The leader runs Phase 1 <strong>once</strong>, for a whole range of log slots.</li>
+<li>For each subsequent value, it only needs to run Phase 2.</li>
+</ol>
+<p>This collapses each agreement to a single round trip in the common case. It&rsquo;s how most real Paxos deployments work.</p>
+<p>If the leader fails, someone else runs Phase 1 with a higher proposal number and becomes the new leader. The safety property means no committed values are ever lost during the transition.</p>
+<h3 id="flexible-paxos">Flexible Paxos<a hidden class="anchor" aria-hidden="true" href="#flexible-paxos">#</a></h3>
+<p>A beautiful observation: the quorum intersection property only requires that Phase 1&rsquo;s quorum and Phase 2&rsquo;s quorum intersect. They don&rsquo;t both need to be majorities.</p>
+<p>Formally, if Q1 is the Phase 1 quorum size and Q2 is the Phase 2 quorum size, you just need:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback">|Q1| + |Q2| &gt; N
+</code></pre></div><p>With N=5 acceptors, you could pick |Q1|=4 and |Q2|=2. Phase 2 (the hot path) is now faster at the cost of slower leader election. This is great for workloads where leaders are stable and writes happen constantly.</p>
+<h3 id="fast-paxos">Fast Paxos<a hidden class="anchor" aria-hidden="true" href="#fast-paxos">#</a></h3>
+<p>Fast Paxos shaves one round trip in the common case by letting clients send values directly to acceptors. The catch: the quorum for Fast Paxos is larger - roughly 3N/4 instead of N/2 + 1 - and collisions require falling back to Classic Paxos.</p>
+<h3 id="epaxos-egalitarian-paxos">EPaxos (Egalitarian Paxos)<a hidden class="anchor" aria-hidden="true" href="#epaxos-egalitarian-paxos">#</a></h3>
+<p>EPaxos removes the leader entirely. Every replica can propose commands. Commands that don&rsquo;t conflict (i.e. commute) can commit in one round trip; conflicting ones need two. This is great for geo-replication because clients can talk to their nearest replica instead of a single global leader.</p>
+<h3 id="paxos-vs-raft">Paxos vs Raft<a hidden class="anchor" aria-hidden="true" href="#paxos-vs-raft">#</a></h3>
+<p>Raft is usually described as &ldquo;Paxos but understandable.&rdquo; It&rsquo;s essentially Multi-Paxos with stronger structural constraints:</p>
+<ul>
+<li>Raft enforces a strong leader that&rsquo;s the only source of log entries.</li>
+<li>Raft requires leaders to have the most up-to-date log, simplifying log repair.</li>
+<li>Raft separates leader election, log replication, and safety into clearly named sub-problems.</li>
+</ul>
+<p>Functionally Raft and Multi-Paxos solve the same problem with similar guarantees. Raft&rsquo;s main contribution is pedagogical clarity, which matters a lot when you&rsquo;re trying to implement this stuff correctly.</p>
+<h3 id="tradeoffs">Tradeoffs<a hidden class="anchor" aria-hidden="true" href="#tradeoffs">#</a></h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Basic Paxos</th>
+<th>Multi-Paxos</th>
+<th>Fast Paxos</th>
+<th>EPaxos</th>
+<th>Flexible Paxos</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Leader</strong></td>
+<td>None</td>
+<td>Stable</td>
+<td>Stable</td>
+<td>None</td>
+<td>Stable</td>
+</tr>
+<tr>
+<td><strong>Round trips (common)</strong></td>
+<td>2</td>
+<td>1</td>
+<td>1 (direct)</td>
+<td>1 (non-conflicting)</td>
+<td>1</td>
+</tr>
+<tr>
+<td><strong>Quorum size</strong></td>
+<td>Majority</td>
+<td>Majority</td>
+<td>~3N/4</td>
+<td>Majority</td>
+<td>Configurable</td>
+</tr>
+<tr>
+<td><strong>Livelock risk</strong></td>
+<td>Yes</td>
+<td>Rare</td>
+<td>Yes on collisions</td>
+<td>Rare</td>
+<td>Rare</td>
+</tr>
+<tr>
+<td><strong>Complexity</strong></td>
+<td>Low</td>
+<td>Medium</td>
+<td>High</td>
+<td>Very high</td>
+<td>Low</td>
+</tr>
+<tr>
+<td><strong>Best for</strong></td>
+<td>Teaching</td>
+<td>Replicated logs</td>
+<td>Low-conflict writes</td>
+<td>Geo-distribution</td>
+<td>Tunable workloads</td>
+</tr>
+</tbody>
+</table>
+<p>Paxos is one of those algorithms where the basic idea is elegant but every practical deployment uses a variant. The core insight - that quorum intersection plus a two-phase protocol gives you agreement under arbitrary failures - is what the whole field builds on.</p>
+<p>P.S. If there are any mistakes please let me know, I&rsquo;m by no means an expert.</p>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="https://low-level-luke.me/tags/braindump/">braindump</a></li>
+      <li><a href="https://low-level-luke.me/tags/distributed-systems/">distributed-systems</a></li>
+      <li><a href="https://low-level-luke.me/tags/consensus/">consensus</a></li>
+    </ul><div class="social-icons" align="center">
+    <a href="mailto:luke61996@gmail.com" target="_blank" rel="noopener noreferrer me"
+        title="Email">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 21" fill="none" stroke="currentColor" stroke-width="2"
+    stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+    <polyline points="22,6 12,13 2,6"></polyline>
+</svg>
+    </a>
+    <a href="https://x.com/MrDust0" target="_blank" rel="noopener noreferrer me"
+        title="X">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+    <path
+        d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z">
+    </path>
+</svg>
+    </a>
+    <a href="https://discord.com/users/323409278733910017" target="_blank" rel="noopener noreferrer me"
+        title="Discord">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 127.14 96.36" fill="currentColor" stroke="none" stroke-width="2"
+    stroke-linecap="round" stroke-linejoin="round">
+    <path
+        d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z" />
+</svg>
+    </a>
+</div>
+
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+        <span>&copy; 2026 <a href="https://low-level-luke.me/">low-level-luke</a></span> · 
+
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://github.com/adityatelange/hugo-PaperMod/" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu');
+    if (menu) {
+        
+        const scrollPosition = localStorage.getItem("menu-scroll-position");
+        if (scrollPosition) {
+            menu.scrollLeft = parseInt(scrollPosition, 10);
+        }
+        
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        const html = document.querySelector("html");
+        if (html.dataset.theme === "dark") {
+            html.dataset.theme = 'light';
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            html.dataset.theme = 'dark';
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerHTML = 'copy';
+
+        function copyingDone() {
+            copybutton.innerHTML = 'copied!';
+            setTimeout(() => {
+                copybutton.innerHTML = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>
