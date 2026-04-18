@@ -6,8 +6,15 @@
     <description>Recent content in braindump on low-level-luke</description>
     <generator>Hugo</generator>
     <language>en-gb</language>
-    <lastBuildDate>Sun, 12 Apr 2026 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Sat, 18 Apr 2026 00:00:00 +0000</lastBuildDate>
     <atom:link href="https://low-level-luke.me/tags/braindump/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Two-Phase Locking (2PL)</title>
+      <link>https://low-level-luke.me/braindumps/2pl/</link>
+      <pubDate>Sat, 18 Apr 2026 00:00:00 +0000</pubDate>
+      <guid>https://low-level-luke.me/braindumps/2pl/</guid>
+      <description>How two-phase locking controls concurrent transactions, and what I got wrong along the way</description>
+    </item>
     <item>
       <title>Database Concurrency Models</title>
       <link>https://low-level-luke.me/braindumps/database-concurrency-models/</link>

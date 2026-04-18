@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto" data-theme="dark">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>Two-Phase Locking (2PL) | low-level-luke</title>
+<meta name="keywords" content="braindump, databases, concurrency, transactions, locking">
+<meta name="description" content="How two-phase locking controls concurrent transactions, and what I got wrong along the way">
+<meta name="author" content="">
+<link rel="canonical" href="https://low-level-luke.me/braindumps/2pl/">
+<link crossorigin="anonymous" href="/assets/css/stylesheet.da3211e5ef867bf2b75fd5a6515cfed7195c011e8ab735694e203810a827097b.css" integrity="sha256-2jIR5e&#43;Ge/K3X9WmUVz&#43;1xlcAR6KtzVpTiA4EKgnCXs=" rel="preload stylesheet" as="style">
+<link rel="icon" href="https://low-level-luke.me/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://low-level-luke.me/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://low-level-luke.me/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://low-level-luke.me/apple-touch-icon.png">
+<link rel="mask-icon" href="https://low-level-luke.me/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+</noscript>
+<script>
+    if (localStorage.getItem("pref-theme") === "light") {
+        document.querySelector("html").dataset.theme = 'light';
+    }
+
+</script><meta property="og:url" content="https://low-level-luke.me/braindumps/2pl/">
+  <meta property="og:site_name" content="low-level-luke">
+  <meta property="og:title" content="Two-Phase Locking (2PL)">
+  <meta property="og:description" content="How two-phase locking controls concurrent transactions, and what I got wrong along the way">
+  <meta property="og:locale" content="en_gb">
+  <meta property="og:type" content="article">
+    <meta property="article:published_time" content="2026-04-18T00:00:00Z">
+  <meta property="article:tag" content="braindump">
+  <meta property="article:tag" content="databases">
+  <meta property="article:tag" content="concurrency">
+  <meta property="article:tag" content="transactions">
+  <meta property="article:tag" content="locking">
+
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Two-Phase Locking (2PL)">
+  <meta name="twitter:description" content="How two-phase locking controls concurrent transactions, and what I got wrong along the way">
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Braindumps",
+      "item": "https://low-level-luke.me/braindumps/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "Two-Phase Locking (2PL)",
+      "item": "https://low-level-luke.me/braindumps/2pl/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Two-Phase Locking (2PL)",
+  "name": "Two-Phase Locking (2PL)",
+  "description": "How two-phase locking controls concurrent transactions, and what I got wrong along the way",
+  "keywords": [
+    "braindump", "databases", "concurrency", "transactions", "locking"
+  ],
+  "articleBody": "Trying to remember a topic from memory with no notes, then getting AI to correct it. Basically using active recall to help me remember things better and forcing myself to post it so I do it more often.\n My Notes Two-phase locking (2PL) is a way to make reads and writes look sequential, even when multiple transactions are happening at once.\nNormally in 2PL there is a growing phase, where we acquire all the locks we need, and a shrinking phase, where we release the locks we acquired for the transaction.\nThis helps prevent issues like dirty reads. For example, if one transaction writes a value and another transaction reads it before the first one commits, then the first transaction aborts, we may need to propagate a rollback to the other transaction too. Otherwise, that second transaction has observed a value that should not have existed.\nWe also have very strict 2PL where locks are only released at commit time. This helps with dirty reads because other transactions cannot read values we are changing until the transaction is fully committed. The downside is performance, because locks are held for longer. There is also strict 2PL, and I am not fully sure what the exact difference is.\nThen we have algorithms for deadlocks, where one transaction holds a lock another needs, and vice versa. You can use strategies like young dies for old or old dies for young, but you need to choose one strategy and stick to it. Another way is choosing a victim based on how much work was done or how many locks are held, then aborting that transaction so execution can continue.\nThen you have intention locks, which help in the lock-manager tree. You can set intention locks at higher levels for locks at lower levels. For example, if you lock a tuple in a table, you can set an intention read lock on the table so other transactions know someone is reading tuples there without checking every tuple individually. If another transaction wants an exclusive lock on the whole table, it has to wait.\n What I Got Wrong   I said 2PL gives the “appearance of sequential writes and reads.\" This is close, but the precise guarantee is conflict serializability. Basic 2PL guarantees that the final schedule is equivalent to some serial order of transactions. It does not automatically guarantee every stronger isolation property unless you combine it with additional rules (for example, strictness and predicate/index-range locking).\n  I mixed up dirty reads and non-repeatable reads in the rollback example. If T2 reads data written by T1 before T1 commits, and then T1 aborts, that is a dirty read. The main consequence is often cascading aborts (you may need to abort T2 too). Non-repeatable reads are a different anomaly where the same transaction reads the same row twice and gets different committed values.\n  I wasn’t sure about the difference between strict 2PL and very strict/rigorous 2PL. The difference is lock release timing:\n Strict 2PL: hold all exclusive (X) locks until commit/abort; shared locks may be released earlier. Rigorous 2PL (often called strong strict 2PL): hold both shared (S) and exclusive (X) locks until commit/abort. What I called “very strict 2PL” maps to rigorous/strong strict 2PL.    I implied standard 2PL itself prevents dirty reads. Basic 2PL alone does not necessarily prevent dirty reads because a transaction can release an exclusive lock before commit during the shrinking phase. Preventing dirty reads cleanly is why systems use strict (or rigorous) 2PL in practice.\n  I mentioned deadlock strategies (“young dies for old” / “old dies for young”) but not the exact rules. These are:\n Wait-Die (non-preemptive): older transaction waits; younger transaction aborts (“dies”). Wound-Wait (preemptive): older transaction aborts younger one (“wounds” it); younger waits for older. You pick one policy and apply it consistently using transaction timestamps.    I didn’t mention deadlock detection as a separate approach. Another common strategy is to allow waits, build a waits-for graph, detect cycles, then pick a victim to abort (often based on least work done, fewest locks held, or youngest age).\n  My intention-lock description was directionally right but incomplete. Intention locks are part of multi-granularity locking. Before locking a row, a transaction first places intention locks on ancestors (table/page). That lets the lock manager check compatibility at higher levels without scanning all descendants.\n  I didn’t call out key intention lock modes. In practice, systems use modes like IS, IX, and SIX, each with a compatibility matrix. This is what makes hierarchical locking efficient and safe.\n   How Two-Phase Locking Actually Works Two-phase locking (2PL) is a concurrency-control protocol that makes concurrent transactions behave like some serial execution order. It is one of the classic ways relational databases enforce isolation.\nCore Idea Each transaction has two phases:\n Growing phase: it can acquire locks, but cannot release any. Shrinking phase: once it releases its first lock, it can release more locks but cannot acquire new ones.  That single rule is enough to ensure conflict-serializable schedules.\nLock Types At minimum, row-level locking uses:\n Shared lock (S): required for reads; multiple transactions can hold S on the same item. Exclusive lock (X): required for writes; blocks all other S/X locks on the same item.  Real systems add update locks and intention locks for performance and hierarchy support.\nWhy Strict Variants Matter Basic 2PL guarantees serializability, but it can still allow cascading aborts if X locks are released before commit. So production systems usually prefer stricter variants:\n Strict 2PL: keep all X locks until commit/abort. Rigorous (strong strict) 2PL: keep all S and X locks until commit/abort.  These reduce anomaly risk and simplify recovery, but they hold locks longer, which increases blocking.\nDeadlocks Under 2PL Because transactions wait on each other’s locks, deadlocks can happen naturally:\n T1 holds lock A, needs B. T2 holds lock B, needs A.  Systems handle this with one of three approaches:\n Prevention via timestamps (wait-die, wound-wait). Detection + resolution (waits-for graph cycle detection, then abort a victim). Conservative/static 2PL (acquire all needed locks before execution; avoids deadlocks but reduces concurrency and is hard when lock sets are unknown).  Intention Locks and Lock Trees Databases lock at multiple granularities (table, page, row). Intention locks make this workable:\n To lock a row in S, place IS on ancestors first. To lock a row in X, place IX on ancestors first.  This advertises lower-level intent at higher levels. A transaction asking for a table-level X lock can quickly see incompatibilities from ancestor lock modes, without checking every row lock individually.\nTradeoffs     Basic 2PL Strict 2PL Rigorous 2PL     Conflict serializable Yes Yes Yes   Dirty reads prevented Not guaranteed Yes Yes   Cascading abort risk Higher Lower Lowest   Lock hold time Shorter Longer Longest   Concurrency Higher Medium Lower   Recovery simplicity Harder Easier Easiest    2PL is a foundational idea because it’s conceptually simple and gives strong guarantees. Most real engines then layer on strictness, multi-granularity locking, deadlock handling, and practical heuristics to balance correctness with throughput.\nP.S. If there are any mistakes please let me know, I’m by no means an expert.\n",
+  "wordCount" : "1168",
+  "inLanguage": "en",
+  "datePublished": "2026-04-18T00:00:00Z",
+  "dateModified": "2026-04-18T00:00:00Z",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://low-level-luke.me/braindumps/2pl/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "low-level-luke",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://low-level-luke.me/favicon.ico"
+    }
+  }
+}
+</script>
+</head>
+<body id="top">
+    <header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="https://low-level-luke.me/" accesskey="h" title="low-level-luke (Alt + H)">low-level-luke</a>
+            <div class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)" aria-label="Toggle theme">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="18" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="18" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="https://low-level-luke.me/" title="Home">
+                    <span>Home</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://low-level-luke.me/tags/" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://low-level-luke.me/braindumps/" title="Braindumps">
+                    <span>Braindumps</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://low-level-luke.me/archives/" title="Archive">
+                    <span>Archive</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    <div class="breadcrumbs"><a href="https://low-level-luke.me/">Home</a>&nbsp;»&nbsp;<a href="https://low-level-luke.me/braindumps/">Braindumps</a></div>
+    <h1 class="post-title entry-hint-parent">
+      Two-Phase Locking (2PL)
+    </h1>
+    <div class="post-meta"><span title='2026-04-18 00:00:00 +0000 UTC'>April 18, 2026</span>&nbsp;·&nbsp;<span>6 min</span>
+
+</div>
+  </header> <div class="toc">
+    <details >
+        <summary accesskey="c" title="(Alt + C)">
+            <span class="details">Table of Contents</span>
+        </summary>
+
+        <div class="inner"><ul>
+                <li>
+                    <a href="#my-notes" aria-label="My Notes">My Notes</a></li>
+                <li>
+                    <a href="#what-i-got-wrong" aria-label="What I Got Wrong">What I Got Wrong</a></li>
+                <li>
+                    <a href="#how-two-phase-locking-actually-works" aria-label="How Two-Phase Locking Actually Works">How Two-Phase Locking Actually Works</a><ul>
+                        
+                <li>
+                    <a href="#core-idea" aria-label="Core Idea">Core Idea</a></li>
+                <li>
+                    <a href="#lock-types" aria-label="Lock Types">Lock Types</a></li>
+                <li>
+                    <a href="#why-strict-variants-matter" aria-label="Why Strict Variants Matter">Why Strict Variants Matter</a></li>
+                <li>
+                    <a href="#deadlocks-under-2pl" aria-label="Deadlocks Under 2PL">Deadlocks Under 2PL</a></li>
+                <li>
+                    <a href="#intention-locks-and-lock-trees" aria-label="Intention Locks and Lock Trees">Intention Locks and Lock Trees</a></li>
+                <li>
+                    <a href="#tradeoffs" aria-label="Tradeoffs">Tradeoffs</a>
+                </li>
+            </ul>
+            </li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+  <div class="post-content"><p><em>Trying to remember a topic from memory with no notes, then getting AI to correct it. Basically using active recall to help me remember things better and forcing myself to post it so I do it more often.</em></p>
+<hr>
+<h2 id="my-notes">My Notes<a hidden class="anchor" aria-hidden="true" href="#my-notes">#</a></h2>
+<p>Two-phase locking (2PL) is a way to make reads and writes look sequential, even when multiple transactions are happening at once.</p>
+<p>Normally in 2PL there is a growing phase, where we acquire all the locks we need, and a shrinking phase, where we release the locks we acquired for the transaction.</p>
+<p>This helps prevent issues like dirty reads. For example, if one transaction writes a value and another transaction reads it before the first one commits, then the first transaction aborts, we may need to propagate a rollback to the other transaction too. Otherwise, that second transaction has observed a value that should not have existed.</p>
+<p>We also have very strict 2PL where locks are only released at commit time. This helps with dirty reads because other transactions cannot read values we are changing until the transaction is fully committed. The downside is performance, because locks are held for longer. There is also strict 2PL, and I am not fully sure what the exact difference is.</p>
+<p>Then we have algorithms for deadlocks, where one transaction holds a lock another needs, and vice versa. You can use strategies like young dies for old or old dies for young, but you need to choose one strategy and stick to it. Another way is choosing a victim based on how much work was done or how many locks are held, then aborting that transaction so execution can continue.</p>
+<p>Then you have intention locks, which help in the lock-manager tree. You can set intention locks at higher levels for locks at lower levels. For example, if you lock a tuple in a table, you can set an intention read lock on the table so other transactions know someone is reading tuples there without checking every tuple individually. If another transaction wants an exclusive lock on the whole table, it has to wait.</p>
+<hr>
+<h2 id="what-i-got-wrong">What I Got Wrong<a hidden class="anchor" aria-hidden="true" href="#what-i-got-wrong">#</a></h2>
+<ul>
+<li>
+<p><strong>I said 2PL gives the &ldquo;appearance of sequential writes and reads.&quot;</strong> This is close, but the precise guarantee is <strong>conflict serializability</strong>. Basic 2PL guarantees that the final schedule is equivalent to some serial order of transactions. It does not automatically guarantee every stronger isolation property unless you combine it with additional rules (for example, strictness and predicate/index-range locking).</p>
+</li>
+<li>
+<p><strong>I mixed up dirty reads and non-repeatable reads in the rollback example.</strong> If <code>T2</code> reads data written by <code>T1</code> before <code>T1</code> commits, and then <code>T1</code> aborts, that is a <strong>dirty read</strong>. The main consequence is often <strong>cascading aborts</strong> (you may need to abort <code>T2</code> too). Non-repeatable reads are a different anomaly where the same transaction reads the same row twice and gets different committed values.</p>
+</li>
+<li>
+<p><strong>I wasn&rsquo;t sure about the difference between strict 2PL and very strict/rigorous 2PL.</strong> The difference is lock release timing:</p>
+<ul>
+<li><strong>Strict 2PL</strong>: hold all <strong>exclusive (X)</strong> locks until commit/abort; shared locks may be released earlier.</li>
+<li><strong>Rigorous 2PL</strong> (often called strong strict 2PL): hold <strong>both shared (S) and exclusive (X)</strong> locks until commit/abort.</li>
+<li>What I called &ldquo;very strict 2PL&rdquo; maps to rigorous/strong strict 2PL.</li>
+</ul>
+</li>
+<li>
+<p><strong>I implied standard 2PL itself prevents dirty reads.</strong> Basic 2PL alone does not necessarily prevent dirty reads because a transaction can release an exclusive lock before commit during the shrinking phase. Preventing dirty reads cleanly is why systems use <strong>strict</strong> (or rigorous) 2PL in practice.</p>
+</li>
+<li>
+<p><strong>I mentioned deadlock strategies (&ldquo;young dies for old&rdquo; / &ldquo;old dies for young&rdquo;) but not the exact rules.</strong> These are:</p>
+<ul>
+<li><strong>Wait-Die</strong> (non-preemptive): older transaction waits; younger transaction aborts (&ldquo;dies&rdquo;).</li>
+<li><strong>Wound-Wait</strong> (preemptive): older transaction aborts younger one (&ldquo;wounds&rdquo; it); younger waits for older.
+You pick one policy and apply it consistently using transaction timestamps.</li>
+</ul>
+</li>
+<li>
+<p><strong>I didn&rsquo;t mention deadlock detection as a separate approach.</strong> Another common strategy is to allow waits, build a <strong>waits-for graph</strong>, detect cycles, then pick a victim to abort (often based on least work done, fewest locks held, or youngest age).</p>
+</li>
+<li>
+<p><strong>My intention-lock description was directionally right but incomplete.</strong> Intention locks are part of <strong>multi-granularity locking</strong>. Before locking a row, a transaction first places intention locks on ancestors (table/page). That lets the lock manager check compatibility at higher levels without scanning all descendants.</p>
+</li>
+<li>
+<p><strong>I didn&rsquo;t call out key intention lock modes.</strong> In practice, systems use modes like <code>IS</code>, <code>IX</code>, and <code>SIX</code>, each with a compatibility matrix. This is what makes hierarchical locking efficient and safe.</p>
+</li>
+</ul>
+<hr>
+<h2 id="how-two-phase-locking-actually-works">How Two-Phase Locking Actually Works<a hidden class="anchor" aria-hidden="true" href="#how-two-phase-locking-actually-works">#</a></h2>
+<p>Two-phase locking (2PL) is a concurrency-control protocol that makes concurrent transactions behave like some serial execution order. It is one of the classic ways relational databases enforce isolation.</p>
+<h3 id="core-idea">Core Idea<a hidden class="anchor" aria-hidden="true" href="#core-idea">#</a></h3>
+<p>Each transaction has two phases:</p>
+<ol>
+<li><strong>Growing phase</strong>: it can acquire locks, but cannot release any.</li>
+<li><strong>Shrinking phase</strong>: once it releases its first lock, it can release more locks but cannot acquire new ones.</li>
+</ol>
+<p>That single rule is enough to ensure conflict-serializable schedules.</p>
+<h3 id="lock-types">Lock Types<a hidden class="anchor" aria-hidden="true" href="#lock-types">#</a></h3>
+<p>At minimum, row-level locking uses:</p>
+<ul>
+<li><strong>Shared lock (<code>S</code>)</strong>: required for reads; multiple transactions can hold <code>S</code> on the same item.</li>
+<li><strong>Exclusive lock (<code>X</code>)</strong>: required for writes; blocks all other <code>S</code>/<code>X</code> locks on the same item.</li>
+</ul>
+<p>Real systems add update locks and intention locks for performance and hierarchy support.</p>
+<h3 id="why-strict-variants-matter">Why Strict Variants Matter<a hidden class="anchor" aria-hidden="true" href="#why-strict-variants-matter">#</a></h3>
+<p>Basic 2PL guarantees serializability, but it can still allow cascading aborts if <code>X</code> locks are released before commit. So production systems usually prefer stricter variants:</p>
+<ul>
+<li><strong>Strict 2PL</strong>: keep all <code>X</code> locks until commit/abort.</li>
+<li><strong>Rigorous (strong strict) 2PL</strong>: keep all <code>S</code> and <code>X</code> locks until commit/abort.</li>
+</ul>
+<p>These reduce anomaly risk and simplify recovery, but they hold locks longer, which increases blocking.</p>
+<h3 id="deadlocks-under-2pl">Deadlocks Under 2PL<a hidden class="anchor" aria-hidden="true" href="#deadlocks-under-2pl">#</a></h3>
+<p>Because transactions wait on each other&rsquo;s locks, deadlocks can happen naturally:</p>
+<ul>
+<li><code>T1</code> holds lock A, needs B.</li>
+<li><code>T2</code> holds lock B, needs A.</li>
+</ul>
+<p>Systems handle this with one of three approaches:</p>
+<ul>
+<li><strong>Prevention via timestamps</strong> (<code>wait-die</code>, <code>wound-wait</code>).</li>
+<li><strong>Detection + resolution</strong> (waits-for graph cycle detection, then abort a victim).</li>
+<li><strong>Conservative/static 2PL</strong> (acquire all needed locks before execution; avoids deadlocks but reduces concurrency and is hard when lock sets are unknown).</li>
+</ul>
+<h3 id="intention-locks-and-lock-trees">Intention Locks and Lock Trees<a hidden class="anchor" aria-hidden="true" href="#intention-locks-and-lock-trees">#</a></h3>
+<p>Databases lock at multiple granularities (table, page, row). Intention locks make this workable:</p>
+<ul>
+<li>To lock a row in <code>S</code>, place <code>IS</code> on ancestors first.</li>
+<li>To lock a row in <code>X</code>, place <code>IX</code> on ancestors first.</li>
+</ul>
+<p>This advertises lower-level intent at higher levels. A transaction asking for a table-level <code>X</code> lock can quickly see incompatibilities from ancestor lock modes, without checking every row lock individually.</p>
+<h3 id="tradeoffs">Tradeoffs<a hidden class="anchor" aria-hidden="true" href="#tradeoffs">#</a></h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Basic 2PL</th>
+<th>Strict 2PL</th>
+<th>Rigorous 2PL</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Conflict serializable</strong></td>
+<td>Yes</td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><strong>Dirty reads prevented</strong></td>
+<td>Not guaranteed</td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><strong>Cascading abort risk</strong></td>
+<td>Higher</td>
+<td>Lower</td>
+<td>Lowest</td>
+</tr>
+<tr>
+<td><strong>Lock hold time</strong></td>
+<td>Shorter</td>
+<td>Longer</td>
+<td>Longest</td>
+</tr>
+<tr>
+<td><strong>Concurrency</strong></td>
+<td>Higher</td>
+<td>Medium</td>
+<td>Lower</td>
+</tr>
+<tr>
+<td><strong>Recovery simplicity</strong></td>
+<td>Harder</td>
+<td>Easier</td>
+<td>Easiest</td>
+</tr>
+</tbody>
+</table>
+<p>2PL is a foundational idea because it&rsquo;s conceptually simple and gives strong guarantees. Most real engines then layer on strictness, multi-granularity locking, deadlock handling, and practical heuristics to balance correctness with throughput.</p>
+<p>P.S. If there are any mistakes please let me know, I&rsquo;m by no means an expert.</p>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="https://low-level-luke.me/tags/braindump/">braindump</a></li>
+      <li><a href="https://low-level-luke.me/tags/databases/">databases</a></li>
+      <li><a href="https://low-level-luke.me/tags/concurrency/">concurrency</a></li>
+      <li><a href="https://low-level-luke.me/tags/transactions/">transactions</a></li>
+      <li><a href="https://low-level-luke.me/tags/locking/">locking</a></li>
+    </ul><div class="social-icons" align="center">
+    <a href="mailto:luke61996@gmail.com" target="_blank" rel="noopener noreferrer me"
+        title="Email">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 21" fill="none" stroke="currentColor" stroke-width="2"
+    stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+    <polyline points="22,6 12,13 2,6"></polyline>
+</svg>
+    </a>
+    <a href="https://x.com/MrDust0" target="_blank" rel="noopener noreferrer me"
+        title="X">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+    <path
+        d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z">
+    </path>
+</svg>
+    </a>
+    <a href="https://discord.com/users/323409278733910017" target="_blank" rel="noopener noreferrer me"
+        title="Discord">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 127.14 96.36" fill="currentColor" stroke="none" stroke-width="2"
+    stroke-linecap="round" stroke-linejoin="round">
+    <path
+        d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z" />
+</svg>
+    </a>
+</div>
+
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+        <span>&copy; 2026 <a href="https://low-level-luke.me/">low-level-luke</a></span> · 
+
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://github.com/adityatelange/hugo-PaperMod/" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu');
+    if (menu) {
+        
+        const scrollPosition = localStorage.getItem("menu-scroll-position");
+        if (scrollPosition) {
+            menu.scrollLeft = parseInt(scrollPosition, 10);
+        }
+        
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        const html = document.querySelector("html");
+        if (html.dataset.theme === "dark") {
+            html.dataset.theme = 'light';
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            html.dataset.theme = 'dark';
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerHTML = 'copy';
+
+        function copyingDone() {
+            copybutton.innerHTML = 'copied!';
+            setTimeout(() => {
+                copybutton.innerHTML = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

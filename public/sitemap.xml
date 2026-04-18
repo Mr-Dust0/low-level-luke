@@ -3,24 +3,33 @@
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://low-level-luke.me/tags/braindump/</loc>
-    <lastmod>2026-04-12T00:00:00+00:00</lastmod>
+    <lastmod>2026-04-18T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://low-level-luke.me/braindumps/</loc>
-    <lastmod>2026-04-12T00:00:00+00:00</lastmod>
+    <lastmod>2026-04-18T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://low-level-luke.me/tags/concurrency/</loc>
-    <lastmod>2026-04-12T00:00:00+00:00</lastmod>
-  </url><url>
-    <loc>https://low-level-luke.me/braindumps/database-concurrency-models/</loc>
-    <lastmod>2026-04-12T00:00:00+00:00</lastmod>
+    <lastmod>2026-04-18T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://low-level-luke.me/tags/databases/</loc>
-    <lastmod>2026-04-12T00:00:00+00:00</lastmod>
+    <lastmod>2026-04-18T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://low-level-luke.me/tags/locking/</loc>
+    <lastmod>2026-04-18T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://low-level-luke.me/</loc>
-    <lastmod>2026-04-12T00:00:00+00:00</lastmod>
+    <lastmod>2026-04-18T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://low-level-luke.me/tags/</loc>
+    <lastmod>2026-04-18T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://low-level-luke.me/tags/transactions/</loc>
+    <lastmod>2026-04-18T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://low-level-luke.me/braindumps/2pl/</loc>
+    <lastmod>2026-04-18T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://low-level-luke.me/braindumps/database-concurrency-models/</loc>
     <lastmod>2026-04-12T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://low-level-luke.me/tags/consensus/</loc>
