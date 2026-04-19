@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto" data-theme="dark">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>PAX, Row Groups, and Parquet | low-level-luke</title>
+<meta name="keywords" content="braindump, databases, olap, storage, parquet">
+<meta name="description" content="How PAX-style layouts and Parquet organize data for analytics, and what I got wrong along the way">
+<meta name="author" content="">
+<link rel="canonical" href="https://low-level-luke.me/braindumps/pax/">
+<link crossorigin="anonymous" href="/assets/css/stylesheet.da3211e5ef867bf2b75fd5a6515cfed7195c011e8ab735694e203810a827097b.css" integrity="sha256-2jIR5e&#43;Ge/K3X9WmUVz&#43;1xlcAR6KtzVpTiA4EKgnCXs=" rel="preload stylesheet" as="style">
+<link rel="icon" href="https://low-level-luke.me/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://low-level-luke.me/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://low-level-luke.me/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://low-level-luke.me/apple-touch-icon.png">
+<link rel="mask-icon" href="https://low-level-luke.me/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+</noscript>
+<script>
+    if (localStorage.getItem("pref-theme") === "light") {
+        document.querySelector("html").dataset.theme = 'light';
+    }
+
+</script><meta property="og:url" content="https://low-level-luke.me/braindumps/pax/">
+  <meta property="og:site_name" content="low-level-luke">
+  <meta property="og:title" content="PAX, Row Groups, and Parquet">
+  <meta property="og:description" content="How PAX-style layouts and Parquet organize data for analytics, and what I got wrong along the way">
+  <meta property="og:locale" content="en_gb">
+  <meta property="og:type" content="article">
+    <meta property="article:published_time" content="2026-04-19T00:00:00Z">
+  <meta property="article:tag" content="braindump">
+  <meta property="article:tag" content="databases">
+  <meta property="article:tag" content="olap">
+  <meta property="article:tag" content="storage">
+  <meta property="article:tag" content="parquet">
+
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="PAX, Row Groups, and Parquet">
+  <meta name="twitter:description" content="How PAX-style layouts and Parquet organize data for analytics, and what I got wrong along the way">
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Braindumps",
+      "item": "https://low-level-luke.me/braindumps/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "PAX, Row Groups, and Parquet",
+      "item": "https://low-level-luke.me/braindumps/pax/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "PAX, Row Groups, and Parquet",
+  "name": "PAX, Row Groups, and Parquet",
+  "description": "How PAX-style layouts and Parquet organize data for analytics, and what I got wrong along the way",
+  "keywords": [
+    "braindump", "databases", "olap", "storage", "parquet"
+  ],
+  "articleBody": "Trying to remember a topic from memory with no notes, then getting AI to correct it. Basically using active recall to help me remember things better and forcing myself to post it so I do it more often.\n My Notes partition attributes across is an way to store data on disk that is used for olap databases as it will group rows togehter into something called an row group or another slimar names. And in each row group there will be be sequentill one after anohter elements for each column in the row which allows for better analatical queries as you can veritcioalize the processing and take an advantage of modern hardware and simd instructions. Also it allows you to not have to fetch an whole row just to get an couple of columns if you are projecting the rest out of the results. However the reason why this is normally used in databases over storing the data in column format is that its easier to stich togehter the results for the query as you will ahve access to the anohter coluns that are related to the coloumns that you just got and can just jump to the offset in the row group where in an pure coloumns storage you would have to find that coloumn and then go to the offset in the column to just stich toghether the two colums. The most popular version of this is parquet and it stores metadata at teh end of the file like an zone map and what the highest and lowest value that has been saw in this file and other information like the size of the metadata so can easily jump to the start of the metadata maybe if the data has been compressed and how to de-compresse it and another infomration like that. The reason why the metadata is at the end of the file and not at the begining is because its mostly used in object storage and hadoop where the fs was only append so it would be an waste of IO and time to rewrite the whole file if you just wanted to change some metadata in the file so that is why it’s at the end.\n What I Got Wrong   I described PAX as if it were the same thing as Parquet row groups. This is directionally close but not exact. PAX (Partition Attributes Across) is a page layout where each page stores mini-columns. Parquet is a columnar file format with row groups and column chunks. They are related ideas, but not the same format.\n  I implied the main reason to use this over pure column layout is easier stitching of columns. Reconstructing rows is a cost in any column-oriented layout. Row groups help because related column data for the same row range is physically close, but the bigger win is scan efficiency, compression, and vectorized execution.\n  I treated Parquet metadata as mainly a file-level zone map. Parquet stores statistics (like min/max) per row group and often per page, then keeps references in the footer metadata. Predicate pushdown uses these stats to skip chunks that cannot match.\n  I said footer-at-end is mainly so metadata can be changed without rewriting. The key reason is that writers do not know final offsets, sizes, and stats until data is written. Putting metadata at the end enables single-pass writes (important for HDFS-style write-once workflows). In immutable/object-store-style systems, changing metadata still usually means rewriting the file.\n  I mixed storage-system details together. HDFS historically influenced this design because files were append/write-once during normal generation patterns. Object storage is typically immutable rather than appendable, but Parquet footer reads still work well there via range requests.\n   How PAX and Parquet Actually Work Think of physical layouts as a spectrum:\n Row store (NSM): rows are stored together. Pure column store (DSM): each column is stored separately. PAX-style hybrid: rows are grouped, but columns are stored contiguously inside each group/page.  PAX improves analytical scans because operators often touch only a few columns. Keeping each column contiguous within a row range improves cache behavior and works well with vectorized/SIMD execution.\nParquet uses a similar hybrid idea at file level:\n A file is split into row groups. Inside each row group, data is split into column chunks. Each column chunk is encoded/compressed in pages.  This gives you columnar scan benefits while keeping related column data for the same row range near each other.\nTypical query flow:\n Read the Parquet footer (metadata at file end). Use schema + stats (min/max, null counts, etc.) to prune row groups/pages. Read only projected columns. Decode/process in vectors, often using SIMD-friendly loops.  Why footer metadata is at the end:\n Writers can stream data first, then write final offsets/statistics once known. Readers can issue a small range read near EOF, find metadata quickly, and plan selective reads. This design fit Hadoop-era write patterns and still works well on object stores.  Tradeoffs     Row Store (NSM) Pure Column Store (DSM) PAX/Parquet-Style Row Groups     Point lookups for full rows Best Worst Good   Analytical scans on few columns Worst Best Best   Row reconstruction cost None Highest Medium   Compression potential Lower Highest High   Vectorized/SIMD execution Weaker Strong Strong   Write/update simplicity Simplest Hardest Middle    P.S. If there are any mistakes please let me know, I’m by no means an expert.\n",
+  "wordCount" : "881",
+  "inLanguage": "en",
+  "datePublished": "2026-04-19T00:00:00Z",
+  "dateModified": "2026-04-19T00:00:00Z",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://low-level-luke.me/braindumps/pax/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "low-level-luke",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://low-level-luke.me/favicon.ico"
+    }
+  }
+}
+</script>
+</head>
+<body id="top">
+    <header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="https://low-level-luke.me/" accesskey="h" title="low-level-luke (Alt + H)">low-level-luke</a>
+            <div class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)" aria-label="Toggle theme">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="18" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="18" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="https://low-level-luke.me/" title="Home">
+                    <span>Home</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://low-level-luke.me/tags/" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://low-level-luke.me/braindumps/" title="Braindumps">
+                    <span>Braindumps</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://low-level-luke.me/archives/" title="Archive">
+                    <span>Archive</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    <div class="breadcrumbs"><a href="https://low-level-luke.me/">Home</a>&nbsp;»&nbsp;<a href="https://low-level-luke.me/braindumps/">Braindumps</a></div>
+    <h1 class="post-title entry-hint-parent">
+      PAX, Row Groups, and Parquet
+    </h1>
+    <div class="post-meta"><span title='2026-04-19 00:00:00 +0000 UTC'>April 19, 2026</span>&nbsp;·&nbsp;<span>5 min</span>
+
+</div>
+  </header> <div class="toc">
+    <details >
+        <summary accesskey="c" title="(Alt + C)">
+            <span class="details">Table of Contents</span>
+        </summary>
+
+        <div class="inner"><ul>
+                <li>
+                    <a href="#my-notes" aria-label="My Notes">My Notes</a></li>
+                <li>
+                    <a href="#what-i-got-wrong" aria-label="What I Got Wrong">What I Got Wrong</a></li>
+                <li>
+                    <a href="#how-pax-and-parquet-actually-work" aria-label="How PAX and Parquet Actually Work">How PAX and Parquet Actually Work</a><ul>
+                        
+                <li>
+                    <a href="#tradeoffs" aria-label="Tradeoffs">Tradeoffs</a>
+                </li>
+            </ul>
+            </li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+  <div class="post-content"><p><em>Trying to remember a topic from memory with no notes, then getting AI to correct it. Basically using active recall to help me remember things better and forcing myself to post it so I do it more often.</em></p>
+<hr>
+<h2 id="my-notes">My Notes<a hidden class="anchor" aria-hidden="true" href="#my-notes">#</a></h2>
+<p>partition attributes across is an way to store data on disk that is used for olap databases as it will group rows togehter into something called an row group or another slimar names. And in each row group there will be be sequentill one after anohter elements for each column in the row which allows for better analatical queries as you can veritcioalize the processing and take an advantage of modern hardware and simd instructions. Also it allows you to not have to fetch an whole row just to get an couple of columns if you are projecting the rest out of the results. However the reason why this is normally used in databases over storing the data in column format is that its easier to stich togehter the results for the query as you will ahve access to the anohter coluns that are related to the coloumns that  you just got and can just jump to the offset in the row group where in an pure coloumns storage you would have to find that coloumn and then go to the offset in the column to just stich toghether the two colums. The most popular version of this is parquet and it stores metadata at teh end of the file like an zone map and what the highest and lowest value that has been saw in this file and other information like the size of the metadata so can easily jump to the start of the metadata maybe if the data has been compressed and how to de-compresse it and another infomration like that. The reason why the metadata is at the end of the file and not at the begining is because its mostly used in object storage and hadoop where the fs was only append so it would be an waste of IO and time to rewrite the whole file if you just wanted to change some metadata in the file so that is why it&rsquo;s at the end.</p>
+<hr>
+<h2 id="what-i-got-wrong">What I Got Wrong<a hidden class="anchor" aria-hidden="true" href="#what-i-got-wrong">#</a></h2>
+<ul>
+<li>
+<p><strong>I described PAX as if it were the same thing as Parquet row groups.</strong> This is directionally close but not exact. PAX (Partition Attributes Across) is a page layout where each page stores mini-columns. Parquet is a columnar file format with row groups and column chunks. They are related ideas, but not the same format.</p>
+</li>
+<li>
+<p><strong>I implied the main reason to use this over pure column layout is easier stitching of columns.</strong> Reconstructing rows is a cost in any column-oriented layout. Row groups help because related column data for the same row range is physically close, but the bigger win is scan efficiency, compression, and vectorized execution.</p>
+</li>
+<li>
+<p><strong>I treated Parquet metadata as mainly a file-level zone map.</strong> Parquet stores statistics (like min/max) per row group and often per page, then keeps references in the footer metadata. Predicate pushdown uses these stats to skip chunks that cannot match.</p>
+</li>
+<li>
+<p><strong>I said footer-at-end is mainly so metadata can be changed without rewriting.</strong> The key reason is that writers do not know final offsets, sizes, and stats until data is written. Putting metadata at the end enables single-pass writes (important for HDFS-style write-once workflows). In immutable/object-store-style systems, changing metadata still usually means rewriting the file.</p>
+</li>
+<li>
+<p><strong>I mixed storage-system details together.</strong> HDFS historically influenced this design because files were append/write-once during normal generation patterns. Object storage is typically immutable rather than appendable, but Parquet footer reads still work well there via range requests.</p>
+</li>
+</ul>
+<hr>
+<h2 id="how-pax-and-parquet-actually-work">How PAX and Parquet Actually Work<a hidden class="anchor" aria-hidden="true" href="#how-pax-and-parquet-actually-work">#</a></h2>
+<p>Think of physical layouts as a spectrum:</p>
+<ul>
+<li>Row store (NSM): rows are stored together.</li>
+<li>Pure column store (DSM): each column is stored separately.</li>
+<li>PAX-style hybrid: rows are grouped, but columns are stored contiguously inside each group/page.</li>
+</ul>
+<p>PAX improves analytical scans because operators often touch only a few columns. Keeping each column contiguous within a row range improves cache behavior and works well with vectorized/SIMD execution.</p>
+<p>Parquet uses a similar hybrid idea at file level:</p>
+<ol>
+<li>A file is split into <strong>row groups</strong>.</li>
+<li>Inside each row group, data is split into <strong>column chunks</strong>.</li>
+<li>Each column chunk is encoded/compressed in <strong>pages</strong>.</li>
+</ol>
+<p>This gives you columnar scan benefits while keeping related column data for the same row range near each other.</p>
+<p>Typical query flow:</p>
+<ol>
+<li>Read the Parquet footer (metadata at file end).</li>
+<li>Use schema + stats (min/max, null counts, etc.) to prune row groups/pages.</li>
+<li>Read only projected columns.</li>
+<li>Decode/process in vectors, often using SIMD-friendly loops.</li>
+</ol>
+<p>Why footer metadata is at the end:</p>
+<ul>
+<li>Writers can stream data first, then write final offsets/statistics once known.</li>
+<li>Readers can issue a small range read near EOF, find metadata quickly, and plan selective reads.</li>
+<li>This design fit Hadoop-era write patterns and still works well on object stores.</li>
+</ul>
+<h3 id="tradeoffs">Tradeoffs<a hidden class="anchor" aria-hidden="true" href="#tradeoffs">#</a></h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Row Store (NSM)</th>
+<th>Pure Column Store (DSM)</th>
+<th>PAX/Parquet-Style Row Groups</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Point lookups for full rows</strong></td>
+<td>Best</td>
+<td>Worst</td>
+<td>Good</td>
+</tr>
+<tr>
+<td><strong>Analytical scans on few columns</strong></td>
+<td>Worst</td>
+<td>Best</td>
+<td>Best</td>
+</tr>
+<tr>
+<td><strong>Row reconstruction cost</strong></td>
+<td>None</td>
+<td>Highest</td>
+<td>Medium</td>
+</tr>
+<tr>
+<td><strong>Compression potential</strong></td>
+<td>Lower</td>
+<td>Highest</td>
+<td>High</td>
+</tr>
+<tr>
+<td><strong>Vectorized/SIMD execution</strong></td>
+<td>Weaker</td>
+<td>Strong</td>
+<td>Strong</td>
+</tr>
+<tr>
+<td><strong>Write/update simplicity</strong></td>
+<td>Simplest</td>
+<td>Hardest</td>
+<td>Middle</td>
+</tr>
+</tbody>
+</table>
+<p>P.S. If there are any mistakes please let me know, I&rsquo;m by no means an expert.</p>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="https://low-level-luke.me/tags/braindump/">braindump</a></li>
+      <li><a href="https://low-level-luke.me/tags/databases/">databases</a></li>
+      <li><a href="https://low-level-luke.me/tags/olap/">olap</a></li>
+      <li><a href="https://low-level-luke.me/tags/storage/">storage</a></li>
+      <li><a href="https://low-level-luke.me/tags/parquet/">parquet</a></li>
+    </ul><div class="social-icons" align="center">
+    <a href="mailto:luke61996@gmail.com" target="_blank" rel="noopener noreferrer me"
+        title="Email">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 21" fill="none" stroke="currentColor" stroke-width="2"
+    stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+    <polyline points="22,6 12,13 2,6"></polyline>
+</svg>
+    </a>
+    <a href="https://x.com/MrDust0" target="_blank" rel="noopener noreferrer me"
+        title="X">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+    <path
+        d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z">
+    </path>
+</svg>
+    </a>
+    <a href="https://discord.com/users/323409278733910017" target="_blank" rel="noopener noreferrer me"
+        title="Discord">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 127.14 96.36" fill="currentColor" stroke="none" stroke-width="2"
+    stroke-linecap="round" stroke-linejoin="round">
+    <path
+        d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z" />
+</svg>
+    </a>
+</div>
+
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+        <span>&copy; 2026 <a href="https://low-level-luke.me/">low-level-luke</a></span> · 
+
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://github.com/adityatelange/hugo-PaperMod/" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu');
+    if (menu) {
+        
+        const scrollPosition = localStorage.getItem("menu-scroll-position");
+        if (scrollPosition) {
+            menu.scrollLeft = parseInt(scrollPosition, 10);
+        }
+        
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        const html = document.querySelector("html");
+        if (html.dataset.theme === "dark") {
+            html.dataset.theme = 'light';
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            html.dataset.theme = 'dark';
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerHTML = 'copy';
+
+        function copyingDone() {
+            copybutton.innerHTML = 'copied!';
+            setTimeout(() => {
+                copybutton.innerHTML = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

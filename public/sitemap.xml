@@ -3,24 +3,36 @@
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://low-level-luke.me/tags/braindump/</loc>
-    <lastmod>2026-04-18T00:00:00+00:00</lastmod>
+    <lastmod>2026-04-19T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://low-level-luke.me/braindumps/</loc>
-    <lastmod>2026-04-18T00:00:00+00:00</lastmod>
+    <lastmod>2026-04-19T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://low-level-luke.me/tags/databases/</loc>
+    <lastmod>2026-04-19T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://low-level-luke.me/</loc>
+    <lastmod>2026-04-19T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://low-level-luke.me/tags/olap/</loc>
+    <lastmod>2026-04-19T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://low-level-luke.me/tags/parquet/</loc>
+    <lastmod>2026-04-19T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://low-level-luke.me/braindumps/pax/</loc>
+    <lastmod>2026-04-19T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://low-level-luke.me/tags/storage/</loc>
+    <lastmod>2026-04-19T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://low-level-luke.me/tags/</loc>
+    <lastmod>2026-04-19T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://low-level-luke.me/tags/concurrency/</loc>
     <lastmod>2026-04-18T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>https://low-level-luke.me/tags/databases/</loc>
-    <lastmod>2026-04-18T00:00:00+00:00</lastmod>
-  </url><url>
     <loc>https://low-level-luke.me/tags/locking/</loc>
-    <lastmod>2026-04-18T00:00:00+00:00</lastmod>
-  </url><url>
-    <loc>https://low-level-luke.me/</loc>
-    <lastmod>2026-04-18T00:00:00+00:00</lastmod>
-  </url><url>
-    <loc>https://low-level-luke.me/tags/</loc>
     <lastmod>2026-04-18T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://low-level-luke.me/tags/transactions/</loc>
@@ -57,9 +69,6 @@
     <lastmod>2026-04-07T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://low-level-luke.me/braindumps/lsm-trees/</loc>
-    <lastmod>2026-04-07T00:00:00+00:00</lastmod>
-  </url><url>
-    <loc>https://low-level-luke.me/tags/storage/</loc>
     <lastmod>2026-04-07T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://low-level-luke.me/posts/finding-the-cost-of-a-tlb-miss/</loc>
